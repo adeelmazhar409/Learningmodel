@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useAuthStore } from "@/store/auth.store";
+import Nav from "@/components/layout/Nav";
+
+export default function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router   = useRouter();
+  const pathname = usePathname();
+  const { user, session, isLoading, setUser, setSession, setIsLoading } = useAuthStore();
+
+  /* ── Wait for Zustand to rehydrate from localStorage ── */
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // Zustand persist rehydrates synchronously on the client.
+    // We just need one render cycle to pick it up.
+    setHydrated(true);
+  }, []);
+
+  /* ── In mock mode, auto-create a session if none exists ── */
+  useEffect(() => {
+    if (!hydrated) return;
+    if (session && user) return;
+
+    const isMock = !process.env.NEXT_PUBLIC_API_URL;
+    if (isMock) {
+      // Silently set a mock session so the guard never fires
+      setUser({
+        id:               "mock-user-001",
+        name:             "Alex Johnson",
+        email:            "student@school.edu",
+        grade_level:      10,
+        learning_profile: {
+          practice:   0.45,
+          teach_back: 0.28,
+          flashcards: 0.17,
+          visual:     0.10,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      setSession({
+        access_token:  "mock-access-token",
+        refresh_token: "mock-refresh-token",
+        expires_at:    Date.now() / 1000 + 3600,
+        user_id:       "mock-user-001",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Real mode — no session means redirect to login
+    setIsLoading(false);
+  }, [hydrated, session, user, setUser, setSession, setIsLoading]);
+
+  /* ── Auth guard — only runs after hydration ── */
+  useEffect(() => {
+    if (!hydrated || isLoading) return;
+    const isMock = !process.env.NEXT_PUBLIC_API_URL;
+    if (isMock) return; // mock mode never redirects
+
+    if (!session || !user) {
+      router.replace("/login");
+      return;
+    }
+    if (!user.grade_level && pathname !== "/onboarding") {
+      router.replace("/onboarding");
+    }
+  }, [hydrated, isLoading, session, user, pathname, router]);
+
+  /* ── Loading state ── */
+  const showLoading = !hydrated || isLoading;
+
+  if (showLoading) {
+    return (
+      <div className="min-h-[100svh] flex items-center justify-center bg-ink">
+        <div className="w-9 h-9 bg-[linear-gradient(145deg,#e8603c,#8c2410)] rounded-full animate-pulse" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[100svh] bg-ink flex flex-col">
+      <Nav />
+      <main className="flex-1 pt-20">{children}</main>
+    </div>
+  );
+}
