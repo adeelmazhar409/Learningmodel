@@ -79,16 +79,45 @@ export default function AppLayout({
 
   if (showLoading) {
     return (
-      <div className="min-h-[100svh] flex items-center justify-center bg-ink">
-        <div className="w-9 h-9 bg-[linear-gradient(145deg,#e8603c,#8c2410)] rounded-full animate-pulse" />
+      <div className="app-loading">
+        <style>{`
+          .app-loading {
+            min-height: 100svh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--ink);
+          }
+          .app-loading-orb {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(145deg, var(--ember), #8c2410);
+            border-radius: 50%;
+            animation: pulse 1.5s ease infinite;
+          }
+        `}</style>
+        <div className="app-loading-orb" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100svh] bg-ink flex flex-col">
+    <div className="app-shell">
+      <style>{`
+        .app-shell {
+          min-height: 100svh;
+          background: var(--ink);
+          display: flex;
+          flex-direction: column;
+        }
+        .app-main {
+          flex: 1;
+          padding-top: 80px;
+        }
+      `}</style>
+
       <Nav />
-      <main className="flex-1 pt-20">{children}</main>
+      <main className="app-main">{children}</main>
     </div>
   );
 }
