@@ -19,248 +19,101 @@ export default function RecordPage() {
   }
 
   return (
-    <>
-      <style>{`
-        .rec-page {
-          max-width: 680px;
-          margin: 0 auto;
-          padding: 48px 24px 80px;
-        }
-
-        .rec-header { margin-bottom: 40px; }
-        .rec-eyebrow {
-          font-size: 11px;
-          color: var(--flame);
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          margin-bottom: 10px;
-          font-weight: 500;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .rec-eyebrow::before {
-          content: '';
-          display: block;
-          width: 18px; height: 1px;
-          background: var(--flame);
-        }
-        .rec-heading {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(26px, 4vw, 38px);
-          font-weight: 500;
-          color: var(--text);
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-          margin-bottom: 10px;
-        }
-        .rec-sub {
-          font-size: 15px;
-          color: var(--soft);
-          line-height: 1.65;
-          font-weight: 300;
-        }
-
-        /* Title step */
-        .rec-title-step {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-          max-width: 520px;
-        }
-        .rec-title-note {
-          font-size: 13px;
-          color: var(--whisper);
-          line-height: 1.55;
-          font-weight: 300;
-        }
-        .rec-start-btn {
-          align-self: flex-start;
-        }
-        .rec-start-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-          transform: none !important;
-        }
-
-        /* Main card */
-        .rec-card {
-          background: var(--surface);
-          border: 1px solid var(--edge);
-          border-radius: 24px;
-          padding: 36px 32px;
-          position: relative;
-          overflow: hidden;
-        }
-        .rec-card::after {
-          content: '';
-          position: absolute; inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.018) 0%, transparent 55%);
-          pointer-events: none; border-radius: inherit;
-        }
-        .rec-card-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 16px;
-          font-weight: 500;
-          color: var(--text);
-          margin-bottom: 6px;
-          letter-spacing: -0.01em;
-        }
-        .rec-card-sub {
-          font-size: 13px;
-          color: var(--soft);
-          font-weight: 300;
-          margin-bottom: 28px;
-          line-height: 1.5;
-        }
-
-        /* Tips */
-        .rec-tips {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-          margin-top: 32px;
-        }
-        .rec-tip {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          padding: 12px 14px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid var(--edge);
-          border-radius: 12px;
-          font-size: 13px;
-          color: var(--soft);
-          line-height: 1.5;
-          font-weight: 300;
-        }
-        .rec-tip-dot {
-          width: 5px; height: 5px;
-          border-radius: 50%;
-          background: var(--flame);
-          flex-shrink: 0;
-          margin-top: 6px;
-        }
-
-        /* Reset */
-        .rec-reset {
-          margin-top: 20px;
-          text-align: center;
-        }
-        .rec-reset-btn {
-          background: none;
-          border: 1px solid var(--edge);
-          color: var(--whisper);
-          font-size: 12px;
-          padding: 7px 16px;
-          border-radius: 100px;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: color 0.2s, border-color 0.2s;
-        }
-        .rec-reset-btn:hover { color: var(--soft); border-color: var(--edge2); }
-
-        @media (max-width: 640px) {
-          .rec-page  { padding: 32px 18px 60px; }
-          .rec-card  { padding: 26px 20px; }
-          .rec-tips  { grid-template-columns: 1fr; }
-        }
-      `}</style>
-
-      <div className="rec-page">
-        <div className="rec-header">
-          <p className="rec-eyebrow">Record</p>
-          <h1 className="rec-heading">
-            {!started ? "Name your lecture" : isProcessing || isReady ? "Processing…" : "Recording"}
-          </h1>
-          <p className="rec-sub">
-            {!started
-              ? "Give your lecture a name so you can find it later, then start recording."
-              : "Your lecture is being transcribed and turned into a personalised study pack."
-            }
-          </p>
-        </div>
-
-        {/* Step 1 — title */}
-        {!started && (
-          <div className="rec-title-step">
-            <div>
-              <label className="label" htmlFor="lecture-title">Lecture name</label>
-              <input
-                id="lecture-title"
-                className="input"
-                type="text"
-                placeholder="e.g. Biology — Photosynthesis"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleStart()}
-                autoFocus
-              />
-            </div>
-            <p className="rec-title-note">
-              You can change this later. Be specific so you can find it in your study packs.
-            </p>
-            <button
-              className="btn-p rec-start-btn"
-              onClick={handleStart}
-              disabled={!title.trim()}
-            >
-              Continue to recording →
-            </button>
-          </div>
-        )}
-
-        {/* Step 2 — recorder or processing */}
-        {started && (
-          <>
-            <div className="rec-card">
-              {!isProcessing && !isReady ? (
-                <>
-                  <p className="rec-card-title">{title}</p>
-                  <p className="rec-card-sub">
-                    Tap the button below to start. Speak clearly — the AI handles the rest.
-                  </p>
-                  <AudioRecorder
-                    title={title}
-                    onUploaded={() => {}}
-                  />
-                </>
-              ) : (
-                <ProcessingStatus recordingId={recordingId ?? ""} />
-              )}
-            </div>
-
-            {/* Tips (only while idle/recording) */}
-            {!isProcessing && !isReady && (
-              <div className="rec-tips">
-                {[
-                  "Speak at a normal pace — don't rush.",
-                  "Hold the phone close to the audio source.",
-                  "You can record up to 60 minutes per session.",
-                  "Background noise is handled automatically.",
-                ].map(t => (
-                  <div className="rec-tip" key={t}>
-                    <div className="rec-tip-dot"/>
-                    <span>{t}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Reset */}
-            {!isProcessing && !isReady && (
-              <div className="rec-reset">
-                <button
-                  className="rec-reset-btn"
-                  onClick={() => { reset(); setStarted(false); setTitle(""); }}
-                >
-                  ← Change lecture name
-                </button>
-              </div>
-            )}
-          </>
-        )}
+    <div className="max-w-[680px] mx-auto px-6 pt-12 pb-20">
+      {/* Header */}
+      <div className="mb-10">
+        <p className="eyebrow">Record</p>
+        <h1 className="font-serif text-[clamp(26px,4vw,38px)] font-medium text-text tracking-[-0.02em] leading-tight mb-2.5">
+          {!started ? "Name your lecture" : isProcessing || isReady ? "Processing…" : "Recording"}
+        </h1>
+        <p className="text-[15px] text-soft font-light leading-relaxed">
+          {!started
+            ? "Give your lecture a name so you can find it later, then start recording."
+            : "Your lecture is being transcribed and turned into a personalised study pack."
+          }
+        </p>
       </div>
-    </>
+
+      {/* Step 1 — title */}
+      {!started && (
+        <div className="flex flex-col gap-5 max-w-[520px]">
+          <div>
+            <label
+              className="block text-[11px] font-medium text-soft tracking-[0.04em] uppercase mb-2"
+              htmlFor="lecture-title"
+            >
+              Lecture name
+            </label>
+            <input
+              id="lecture-title"
+              className="input"
+              type="text"
+              placeholder="e.g. Biology — Photosynthesis"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleStart()}
+              autoFocus
+            />
+          </div>
+          <p className="text-xs text-whisper leading-relaxed">
+            You can change this later. Be specific so you can find it in your study packs.
+          </p>
+          <button
+            className="btn-primary self-start"
+            onClick={handleStart}
+            disabled={!title.trim()}
+          >
+            Continue
+            <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Step 2 — Recording */}
+      {started && !isReady && (
+        <div className="bg-surface border border-edge rounded-lg p-8 max-w-[520px] relative overflow-hidden after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-br after:from-[rgba(255,255,255,0.018)] after:to-transparent after:pointer-events-none after:rounded-[inherit]">
+          <AudioRecorder
+            title={title}
+            onUploaded={(id) => { /* handled by store */ }}
+          />
+        </div>
+      )}
+
+      {/* Step 3 — Processing status */}
+      {isProcessing && recordingId && (
+        <ProcessingStatus recordingId={recordingId} />
+      )}
+
+      {/* Tips */}
+      {started && !isProcessing && !isReady && (
+        <div className="grid grid-cols-2 gap-2.5 mt-8 max-sm:grid-cols-1">
+          {[
+            "Speak clearly and at a normal pace",
+            "Minimise background noise if possible",
+            "It's okay if it's not perfect — AI adapts",
+            "Longer recordings = richer study packs",
+          ].map(tip => (
+            <div key={tip} className="flex items-start gap-2.5 p-3.5 bg-[rgba(255,255,255,0.025)] border border-edge rounded-xl text-[13px] text-soft leading-normal font-light">
+              <span className="w-[5px] h-[5px] rounded-full bg-flame shrink-0 mt-1.5" />
+              {tip}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Reset */}
+      {(started || isReady) && (
+        <div className="mt-5 text-center">
+          <button
+            className="bg-transparent border border-edge text-whisper text-xs px-4 py-[7px] rounded-pill cursor-pointer font-sans transition-all hover:text-soft hover:border-edge-2"
+            onClick={() => { reset(); setStarted(false); setTitle(""); }}
+          >
+            Start over
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -7,7 +7,6 @@ interface AuthState {
   session:   Session | null;
   isLoading: boolean;
 
-  /* Actions */
   setUser:      (user: User | null) => void;
   setSession:   (session: Session | null) => void;
   setIsLoading: (loading: boolean) => void;
@@ -33,10 +32,8 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? localStorage : ({} as Storage)
       ),
-      // Only persist the token — re-fetch user on mount
       partialize: (state) => ({ session: state.session }),
       onRehydrateStorage: () => (state) => {
-        // Mark loading done after rehydration
         if (state) state.setIsLoading(false);
       },
     }

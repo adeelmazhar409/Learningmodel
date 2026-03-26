@@ -36,10 +36,7 @@ export const metadata: Metadata = {
     description:
       "Discover how your brain actually learns. Personalized study packs from every lecture.",
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
@@ -56,10 +53,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body className="grain">
         {children}
-
-        {/* Global toast notifications */}
         <Toaster
           position="top-center"
           toastOptions={{
@@ -74,18 +69,8 @@ export default function RootLayout({
               fontWeight: "400",
               padding: "12px 18px",
             },
-            success: {
-              iconTheme: {
-                primary: "#d94f2b",
-                secondary: "#f0ede8",
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: "#e8603c",
-                secondary: "#f0ede8",
-              },
-            },
+            success: { iconTheme: { primary: "#d94f2b", secondary: "#f0ede8" } },
+            error:   { iconTheme: { primary: "#e8603c", secondary: "#f0ede8" } },
           }}
         />
       </body>

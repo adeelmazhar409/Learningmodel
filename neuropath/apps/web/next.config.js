@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Allow images from Supabase storage
   images: {
     remotePatterns: [
       {
@@ -13,8 +12,6 @@ const nextConfig = {
     ],
   },
 
-  // Proxy /api/* to Express backend in development
-  // When NEXT_PUBLIC_API_URL is not set, mock mode kicks in automatically
   async rewrites() {
     if (!process.env.NEXT_PUBLIC_API_URL) return [];
     return [

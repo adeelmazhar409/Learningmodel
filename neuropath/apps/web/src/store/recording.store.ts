@@ -11,26 +11,18 @@ export type RecordingPhase =
   | "error";
 
 interface RecordingState {
-  /* Phase */
   phase:       RecordingPhase;
   recordingId: string | null;
-
-  /* Audio capture */
   mediaRecorder:  MediaRecorder | null;
   audioChunks:    Blob[];
   audioBlob:      Blob | null;
   durationMs:     number;
   timerInterval:  ReturnType<typeof setInterval> | null;
-
-  /* Processing */
   status:         RecordingStatus | null;
   statusMessage:  string;
-  progress:       number;           // 0–100
-
-  /* Error */
+  progress:       number;
   error: string | null;
 
-  /* Actions */
   setPhase:         (phase: RecordingPhase) => void;
   setRecordingId:   (id: string) => void;
   setMediaRecorder: (mr: MediaRecorder | null) => void;
@@ -67,15 +59,11 @@ export const useRecordingStore = create<RecordingState>()((set, get) => ({
   setAudioBlob:     (blob)        => set({ audioBlob: blob }),
   tickDuration:     ()            => set(s => ({ durationMs: s.durationMs + 1000 })),
   setTimerInterval: (interval)    => set({ timerInterval: interval }),
-
   setStatus: (status, message, progress) =>
     set({ status, statusMessage: message, progress }),
-
   setError: (error) =>
     set({ phase: "error", error }),
-
   reset: () => {
-    // Stop any running timer
     const { timerInterval, mediaRecorder } = get();
     if (timerInterval) clearInterval(timerInterval);
     if (mediaRecorder && mediaRecorder.state !== "inactive") {

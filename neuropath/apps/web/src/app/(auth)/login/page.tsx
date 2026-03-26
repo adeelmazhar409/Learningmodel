@@ -16,138 +16,100 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false);
   const [errors,   setErrors]   = useState<{ email?: string; password?: string }>({});
 
-  /* ── Validation ── */
   function validate() {
     const e: typeof errors = {};
-    if (!email.trim())               e.email    = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(email)) e.email = "Enter a valid email";
-    if (!password)                   e.password = "Password is required";
-    else if (password.length < 6)   e.password = "Password must be at least 6 characters";
+    if (!email.trim())                     e.email    = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(email)) e.email    = "Enter a valid email";
+    if (!password)                         e.password = "Password is required";
+    else if (password.length < 6)          e.password = "Password must be at least 6 characters";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  /* ── Submit ── */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-
     setLoading(true);
     try {
       const { user, session } = await authApi.login({ email, password });
       setUser(user);
       setSession(session);
       toast.success("Welcome back!");
-
-      // If user hasn't completed onboarding send them there
-      if (!user.grade_level) {
-        router.push("/onboarding");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push(user.grade_level ? "/dashboard" : "/onboarding");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Invalid email or password";
-      toast.error(message);
+      toast.error(err instanceof Error ? err.message : "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  const inputCls = (err?: string) =>
+    `input ${err ? "error" : ""}`;
+
   return (
     <>
-      <style>{`
-        .auth-heading {
-          font-family: 'Playfair Display', serif;
-          font-size: 26px;
-          font-weight: 500;
-          color: var(--text);
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-          margin-bottom: 6px;
-        }
-        .auth-sub {
-          font-size: 14px;
-          color: var(--soft);
-          margin-bottom: 28px;
-          font-weight: 300;
-          line-height: 1.5;
-        }
-        .field { margin-bottom: 18px; }
-        .input-error { font-size: 12px; color: var(--ember); margin-top: 5px; }
-        .submit-btn {
-          width: 100%;
-          justify-content: center;
-          margin-top: 8px;
-        }
-        .submit-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none !important;
-        }
-        .spinner {
-          width: 16px; height: 16px;
-          border: 2px solid rgba(12,12,14,0.3);
-          border-top-color: var(--ink);
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          flex-shrink: 0;
-        }
-      `}</style>
+      <h1 className="font-serif text-[26px] font-medium text-text tracking-[-0.02em] leading-tight mb-1.5">
+        Welcome back
+      </h1>
+      <p className="text-sm text-soft font-light mb-7">
+        Sign in to continue where you left off.
+      </p>
 
-      <h1 className="auth-heading">Welcome back</h1>
-      <p className="auth-sub">Sign in to continue your learning journey.</p>
-
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         {/* Email */}
-        <div className="field">
-          <label className="label" htmlFor="email">Email</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-whisper tracking-[0.06em] uppercase" htmlFor="email">
+            Email
+          </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
             value={email}
             onChange={e => { setEmail(e.target.value); setErrors(v => ({ ...v, email: undefined })); }}
-            className={`input${errors.email ? " error" : ""}`}
+            className={inputCls(errors.email)}
             placeholder="you@school.edu"
             disabled={loading}
           />
-          {errors.email && <p className="input-error">{errors.email}</p>}
+          {errors.email && <p className="text-xs text-ember mt-0.5">{errors.email}</p>}
         </div>
 
         {/* Password */}
-        <div className="field">
-          <label className="label" htmlFor="password">Password</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-whisper tracking-[0.06em] uppercase" htmlFor="password">
+            Password
+          </label>
           <input
             id="password"
             type="password"
             autoComplete="current-password"
             value={password}
             onChange={e => { setPassword(e.target.value); setErrors(v => ({ ...v, password: undefined })); }}
-            className={`input${errors.password ? " error" : ""}`}
+            className={inputCls(errors.password)}
             placeholder="••••••••"
             disabled={loading}
           />
-          {errors.password && <p className="input-error">{errors.password}</p>}
+          {errors.password && <p className="text-xs text-ember mt-0.5">{errors.password}</p>}
         </div>
 
         {/* Submit */}
-        <button
-          type="submit"
-          className="btn-p submit-btn"
-          disabled={loading}
-        >
-          {loading
-            ? <><span className="spinner" /> Signing in…</>
-            : "Sign in"
-          }
+        <button type="submit" className="btn-primary w-full justify-center mt-2" disabled={loading}>
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-ink/30 border-t-ink rounded-full animate-spin" />
+              Signing in…
+            </>
+          ) : (
+            "Sign in"
+          )}
         </button>
       </form>
 
-      {/* Footer link */}
-      <div className="auth-footer">
+      <div className="mt-7 text-center text-[13px] text-whisper">
         Don&apos;t have an account?{" "}
-        <Link href="/signup">Create one free</Link>
+        <Link href="/signup" className="text-ember no-underline font-medium hover:opacity-80 transition-opacity">
+          Create one free
+        </Link>
       </div>
     </>
   );

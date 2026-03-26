@@ -8,516 +8,192 @@ import { roadmapApi } from "@/lib/api/roadmap.api";
 import type { StudyPack } from "@neuropath/types";
 import type { RoadmapTask } from "@neuropath/types";
 
+/* ── Reusable sub-components ── */
+function SectionCard({
+  title, linkHref, linkLabel, children,
+}: {
+  title: string; linkHref: string; linkLabel: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-surface border border-edge rounded-lg p-7 relative overflow-hidden after:content-[''] after:absolute after:inset-0 after:bg-gradient-to-br after:from-[rgba(255,255,255,0.018)] after:to-transparent after:pointer-events-none after:rounded-[inherit]">
+      <div className="flex items-center justify-between mb-[22px]">
+        <span className="font-serif text-base font-medium text-text tracking-[-0.01em]">{title}</span>
+        <Link href={linkHref} className="text-xs text-flame no-underline font-medium tracking-[0.03em] hover:opacity-75 transition-opacity">
+          {linkLabel}
+        </Link>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SkeletonList({ count }: { count: number }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="skeleton" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-center py-6 text-sm text-whisper font-light leading-relaxed">
+      {children}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
 
-  const [recentPacks, setRecentPacks]   = useState<StudyPack[]>([]);
-  const [todayTasks,  setTodayTasks]    = useState<RoadmapTask[]>([]);
+  const [recentPacks,  setRecentPacks]  = useState<StudyPack[]>([]);
+  const [todayTasks,   setTodayTasks]   = useState<RoadmapTask[]>([]);
   const [loadingPacks, setLoadingPacks] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(true);
 
-  const hasProfile  = !!user?.learning_profile;
-  const firstName   = user?.name?.split(" ")[0] ?? "there";
-  const gradeLabel  = user?.grade_level ? `Grade ${user.grade_level}` : "";
+  const hasProfile = !!user?.learning_profile;
+  const firstName  = user?.name?.split(" ")[0] ?? "there";
+  const gradeLabel = user?.grade_level ? `Grade ${user.grade_level}` : "";
 
-  /* ── Fetch recent study packs ── */
   useEffect(() => {
-    studyPacksApi
-      .list({ limit: 3 })
-      .then(setRecentPacks)
-      .catch(() => {})
-      .finally(() => setLoadingPacks(false));
+    studyPacksApi.list({ limit: 3 }).then(setRecentPacks).catch(() => {}).finally(() => setLoadingPacks(false));
   }, []);
 
-  /* ── Fetch today's roadmap tasks ── */
   useEffect(() => {
-    roadmapApi
-      .getTodaysTasks()
-      .then(setTodayTasks)
-      .catch(() => {})
-      .finally(() => setLoadingTasks(false));
+    roadmapApi.getTodaysTasks().then(setTodayTasks).catch(() => {}).finally(() => setLoadingTasks(false));
   }, []);
 
   const completedToday = todayTasks.filter(t => t.completed).length;
 
   return (
-    <>
-      <style>{`
-        .dash-page {
-          max-width: 1100px;
-          margin: 0 auto;
-          padding: 48px 24px 80px;
-        }
-
-        /* ── Header ── */
-        .dash-header {
-          margin-bottom: 48px;
-        }
-        .dash-greeting {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(28px, 4vw, 42px);
-          font-weight: 500;
-          color: var(--text);
-          letter-spacing: -0.02em;
-          line-height: 1.15;
-          margin-bottom: 6px;
-        }
-        .dash-greeting em {
-          font-style: italic;
-          color: var(--soft);
-        }
-        .dash-meta {
-          font-size: 13.5px;
-          color: var(--whisper);
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .dash-meta-dot {
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: var(--edge2);
-          flex-shrink: 0;
-        }
-
-        /* ── CTA banner (no diagnostic yet) ── */
-        .diag-banner {
-          background: linear-gradient(
-            135deg,
-            rgba(217,79,43,0.10) 0%,
-            rgba(217,79,43,0.04) 100%
-          );
-          border: 1px solid rgba(217,79,43,0.22);
-          border-radius: 20px;
-          padding: 28px 32px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 24px;
-          flex-wrap: wrap;
-          margin-bottom: 40px;
-          position: relative;
-          overflow: hidden;
-        }
-        .diag-banner::before {
-          content: '';
-          position: absolute;
-          top: -1px; left: 20%; right: 60%;
-          height: 1px;
-          background: linear-gradient(to right, transparent, var(--flame), transparent);
-        }
-        .diag-banner-left h2 {
-          font-family: 'Playfair Display', serif;
-          font-size: 20px;
-          font-weight: 500;
-          color: var(--text);
-          margin-bottom: 6px;
-          letter-spacing: -0.01em;
-        }
-        .diag-banner-left p {
-          font-size: 14px;
-          color: var(--soft);
-          line-height: 1.6;
-          font-weight: 300;
-          max-width: 440px;
-        }
-
-        /* ── Section layout ── */
-        .dash-sections {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        /* ── Section card ── */
-        .dash-section {
-          background: var(--surface);
-          border: 1px solid var(--edge);
-          border-radius: 20px;
-          padding: 28px;
-          position: relative;
-          overflow: hidden;
-        }
-        .dash-section::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.018) 0%, transparent 55%);
-          pointer-events: none;
-          border-radius: inherit;
-        }
-        .dash-section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 22px;
-        }
-        .dash-section-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 16px;
-          font-weight: 500;
-          color: var(--text);
-          letter-spacing: -0.01em;
-        }
-        .dash-section-link {
-          font-size: 12px;
-          color: var(--flame);
-          text-decoration: none;
-          font-weight: 500;
-          letter-spacing: 0.03em;
-          transition: opacity 0.2s;
-        }
-        .dash-section-link:hover { opacity: 0.75; }
-
-        /* ── Quick stats row ── */
-        .dash-stats {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin-bottom: 40px;
-        }
-        .dash-stat {
-          background: var(--surface);
-          border: 1px solid var(--edge);
-          border-radius: 16px;
-          padding: 20px 18px;
-          text-align: center;
-        }
-        .dash-stat-n {
-          font-family: 'Playfair Display', serif;
-          font-size: 30px;
-          font-weight: 600;
-          color: var(--text);
-          line-height: 1;
-          letter-spacing: -0.02em;
-          margin-bottom: 4px;
-        }
-        .dash-stat-l {
-          font-size: 11.5px;
-          color: var(--whisper);
-          letter-spacing: 0.04em;
-        }
-
-        /* ── Pack preview ── */
-        .pack-preview {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .pack-row {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 12px 14px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid var(--edge);
-          border-radius: 12px;
-          text-decoration: none;
-          transition: border-color 0.2s, background 0.2s;
-        }
-        .pack-row:hover {
-          border-color: var(--edge2);
-          background: rgba(255,255,255,0.04);
-        }
-        .pack-row-icon {
-          width: 36px; height: 36px;
-          background: rgba(217,79,43,0.08);
-          border: 1px solid rgba(217,79,43,0.15);
-          border-radius: 9px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-          font-size: 16px;
-        }
-        .pack-row-body { flex: 1; min-width: 0; }
-        .pack-row-name {
-          font-size: 13.5px;
-          font-weight: 500;
-          color: var(--text);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          margin-bottom: 2px;
-        }
-        .pack-row-meta {
-          font-size: 11.5px;
-          color: var(--whisper);
-        }
-
-        /* ── Task list ── */
-        .task-list { display: flex; flex-direction: column; gap: 10px; }
-        .task-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          padding: 12px 14px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid var(--edge);
-          border-radius: 12px;
-        }
-        .task-row.done { opacity: 0.45; }
-        .task-check {
-          width: 18px; height: 18px;
-          border-radius: 50%;
-          border: 1.5px solid var(--edge2);
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-          margin-top: 1px;
-        }
-        .task-check.done {
-          background: var(--flame);
-          border-color: var(--flame);
-        }
-        .task-check.done::after {
-          content: '';
-          width: 8px; height: 5px;
-          border-left: 1.5px solid #fff;
-          border-bottom: 1.5px solid #fff;
-          transform: rotate(-45deg) translate(1px, -1px);
-        }
-        .task-text {
-          font-size: 13.5px;
-          color: var(--soft);
-          line-height: 1.5;
-          font-weight: 300;
-          flex: 1;
-        }
-        .task-text.done { text-decoration: line-through; }
-
-        /* ── Empty state ── */
-        .empty-state {
-          text-align: center;
-          padding: 24px 16px;
-          font-size: 13.5px;
-          color: var(--whisper);
-          line-height: 1.6;
-        }
-        .empty-state a {
-          color: var(--ember);
-          text-decoration: none;
-          font-weight: 500;
-        }
-
-        /* ── Skeleton ── */
-        .skel { height: 52px; border-radius: 12px; margin-bottom: 10px; }
-
-        /* ── Profile pill ── */
-        .profile-pills {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .profile-pill-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .profile-pill-label {
-          font-size: 12.5px;
-          color: var(--soft);
-          width: 110px;
-          flex-shrink: 0;
-          font-weight: 300;
-        }
-        .profile-pill-track {
-          flex: 1;
-          height: 5px;
-          background: var(--edge);
-          border-radius: 100px;
-          overflow: hidden;
-        }
-        .profile-pill-fill {
-          height: 100%;
-          background: linear-gradient(to right, var(--flame), var(--ember));
-          border-radius: 100px;
-        }
-        .profile-pill-pct {
-          font-size: 12px;
-          color: var(--whisper);
-          width: 34px;
-          text-align: right;
-          flex-shrink: 0;
-        }
-
-        /* ── Responsive ── */
-        @media (max-width: 768px) {
-          .dash-sections { grid-template-columns: 1fr; }
-          .dash-stats    { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 480px) {
-          .dash-page  { padding: 32px 18px 60px; }
-          .dash-stats { grid-template-columns: repeat(2, 1fr); }
-          .diag-banner { padding: 22px 20px; }
-        }
-      `}</style>
-
-      <div className="dash-page">
-        {/* Header */}
-        <div className="dash-header">
-          <h1 className="dash-greeting">
-            Good to see you, <em>{firstName}.</em>
-          </h1>
-          <div className="dash-meta">
-            {gradeLabel && <span>{gradeLabel}</span>}
-            {gradeLabel && hasProfile && <span className="dash-meta-dot" />}
-            {hasProfile && <span>Learning profile active</span>}
-          </div>
-        </div>
-
-        {/* Diagnostic CTA — only shown when profile doesn't exist yet */}
-        {!hasProfile && (
-          <div className="diag-banner">
-            <div className="diag-banner-left">
-              <h2>Discover how your brain learns</h2>
-              <p>
-                Take the 20-minute diagnostic to unlock a fully personalised
-                study system. No guessing — pure performance data.
-              </p>
-            </div>
-            <Link href="/diagnostic" className="btn-p" style={{ flexShrink: 0 }}>
-              Start Diagnostic
-            </Link>
-          </div>
-        )}
-
-        {/* Stats row */}
-        <div className="dash-stats">
-          <div className="dash-stat">
-            <div className="dash-stat-n">{recentPacks.length}</div>
-            <div className="dash-stat-l">Study packs</div>
-          </div>
-          <div className="dash-stat">
-            <div className="dash-stat-n">{completedToday}</div>
-            <div className="dash-stat-l">Tasks done today</div>
-          </div>
-          <div className="dash-stat">
-            <div className="dash-stat-n">{todayTasks.length}</div>
-            <div className="dash-stat-l">Tasks remaining</div>
-          </div>
-        </div>
-
-        {/* Two-column sections */}
-        <div className="dash-sections">
-
-          {/* Recent Study Packs */}
-          <div className="dash-section">
-            <div className="dash-section-header">
-              <span className="dash-section-title">Recent Study Packs</span>
-              <Link href="/study-packs" className="dash-section-link">View all →</Link>
-            </div>
-
-            {loadingPacks ? (
-              <>
-                <div className="skel skeleton" />
-                <div className="skel skeleton" />
-                <div className="skel skeleton" />
-              </>
-            ) : recentPacks.length === 0 ? (
-              <div className="empty-state">
-                No study packs yet.{" "}
-                <Link href="/record">Record your first lecture</Link> to get started.
-              </div>
-            ) : (
-              <div className="pack-preview">
-                {recentPacks.map(pack => (
-                  <Link
-                    key={pack.id}
-                    href={`/study-packs/${pack.id}/summary`}
-                    className="pack-row"
-                  >
-                    <div className="pack-row-icon">📚</div>
-                    <div className="pack-row-body">
-                      <div className="pack-row-name">{pack.title}</div>
-                      <div className="pack-row-meta">
-                        {pack.flashcard_count} flashcards · {pack.quiz_count} questions
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Today's Tasks */}
-          <div className="dash-section">
-            <div className="dash-section-header">
-              <span className="dash-section-title">Today&apos;s Tasks</span>
-              <Link href="/roadmap" className="dash-section-link">View roadmap →</Link>
-            </div>
-
-            {loadingTasks ? (
-              <>
-                <div className="skel skeleton" />
-                <div className="skel skeleton" />
-              </>
-            ) : todayTasks.length === 0 ? (
-              <div className="empty-state">
-                No tasks scheduled.{" "}
-                <Link href="/roadmap/set-date">Set a test date</Link> to build your roadmap.
-              </div>
-            ) : (
-              <div className="task-list">
-                {todayTasks.map(task => (
-                  <div key={task.id} className={`task-row${task.completed ? " done" : ""}`}>
-                    <div className={`task-check${task.completed ? " done" : ""}`} />
-                    <span className={`task-text${task.completed ? " done" : ""}`}>
-                      {task.description}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Learning Profile */}
-          {hasProfile && user?.learning_profile && (
-            <div className="dash-section">
-              <div className="dash-section-header">
-                <span className="dash-section-title">Your Learning Profile</span>
-                <Link href="/diagnostic" className="dash-section-link">Retake →</Link>
-              </div>
-              <div className="profile-pills">
-                {[
-                  { label: "Practice",    value: user.learning_profile.practice    },
-                  { label: "Teach-Back",  value: user.learning_profile.teach_back  },
-                  { label: "Flashcards",  value: user.learning_profile.flashcards  },
-                  { label: "Visual Map",  value: user.learning_profile.visual      },
-                ].sort((a, b) => b.value - a.value).map(m => (
-                  <div key={m.label} className="profile-pill-row">
-                    <span className="profile-pill-label">{m.label}</span>
-                    <div className="profile-pill-track">
-                      <div
-                        className="profile-pill-fill"
-                        style={{ width: `${Math.round(m.value * 100)}%` }}
-                      />
-                    </div>
-                    <span className="profile-pill-pct">
-                      {Math.round(m.value * 100)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quick record CTA */}
-          <div className="dash-section" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", gap: 16, minHeight: 180 }}>
-            <div style={{ fontSize: 32 }}>🎙</div>
-            <div>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 500, color: "var(--text)", marginBottom: 6 }}>
-                Record a lecture
-              </div>
-              <div style={{ fontSize: 13, color: "var(--soft)", fontWeight: 300, lineHeight: 1.55, maxWidth: 220, margin: "0 auto" }}>
-                Turn any class into a personalised study pack in minutes.
-              </div>
-            </div>
-            <Link href="/record" className="btn-p" style={{ fontSize: 13.5 }}>
-              Start Recording
-            </Link>
-          </div>
-
+    <div className="max-w-[1100px] mx-auto px-6 pt-12 pb-20">
+      {/* ── Header ── */}
+      <div className="mb-12">
+        <h1 className="font-serif text-[clamp(28px,4vw,42px)] font-medium text-text tracking-[-0.02em] leading-[1.15] mb-1.5">
+          Welcome back, <em className="italic text-soft">{firstName}</em>
+        </h1>
+        <div className="text-[13.5px] text-whisper flex items-center gap-2.5">
+          {gradeLabel && <span>{gradeLabel}</span>}
+          {gradeLabel && <span className="w-1 h-1 rounded-full bg-edge-2 shrink-0" />}
+          <span>{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span>
         </div>
       </div>
-    </>
+
+      {/* ── CTA banner ── */}
+      {!hasProfile && (
+        <div className="bg-gradient-to-br from-[rgba(217,79,43,0.10)] to-[rgba(217,79,43,0.04)] border border-[rgba(217,79,43,0.22)] rounded-lg p-7 flex items-center justify-between gap-6 flex-wrap mb-10 relative overflow-hidden before:content-[''] before:absolute before:top-[-1px] before:left-[20%] before:right-[60%] before:h-px before:bg-gradient-to-r before:from-transparent before:via-flame before:to-transparent">
+          <div>
+            <h2 className="font-serif text-[20px] font-medium text-text mb-1.5 tracking-[-0.01em]">
+              Discover your learning profile
+            </h2>
+            <p className="text-sm text-soft font-light leading-relaxed max-w-[440px]">
+              Take a quick performance-based diagnostic to find out how your brain retains information.
+              No guessing — pure performance data.
+            </p>
+          </div>
+          <Link href="/diagnostic" className="btn-primary shrink-0">
+            Start Diagnostic
+          </Link>
+        </div>
+      )}
+
+      {/* ── Stats row ── */}
+      <div className="grid grid-cols-3 gap-3 mb-10">
+        {[
+          { n: recentPacks.length, l: "Study packs" },
+          { n: completedToday,     l: "Tasks done today" },
+          { n: todayTasks.length,  l: "Tasks remaining" },
+        ].map(s => (
+          <div key={s.l} className="bg-surface border border-edge rounded-md p-5 text-center">
+            <div className="font-serif text-[30px] font-semibold text-text leading-none tracking-[-0.02em] mb-1">
+              {s.n}
+            </div>
+            <div className="text-[11.5px] text-whisper tracking-[0.04em]">{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Two-column grid ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Recent Study Packs */}
+        <SectionCard title="Recent Study Packs" linkHref="/study-packs" linkLabel="View all →">
+          {loadingPacks ? (
+            <SkeletonList count={3} />
+          ) : recentPacks.length === 0 ? (
+            <EmptyState>
+              No study packs yet.{" "}
+              <Link href="/record" className="text-ember font-medium no-underline">Record your first lecture</Link>{" "}
+              to get started.
+            </EmptyState>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {recentPacks.map(pack => (
+                <Link
+                  key={pack.id}
+                  href={`/study-packs/${pack.id}/summary`}
+                  className="flex items-center gap-3.5 px-3.5 py-3 bg-[rgba(255,255,255,0.025)] border border-edge rounded-xl no-underline transition-all duration-200 hover:border-edge-2 hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <div className="w-9 h-9 bg-[rgba(217,79,43,0.08)] border border-[rgba(217,79,43,0.15)] rounded-[9px] flex items-center justify-center shrink-0 text-base">
+                    📚
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-medium text-text truncate mb-0.5">{pack.title}</div>
+                    <div className="text-[11.5px] text-whisper">
+                      {pack.flashcard_count} flashcards · {pack.quiz_count} questions
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Today's Tasks */}
+        <SectionCard title="Today's Tasks" linkHref="/roadmap" linkLabel="View roadmap →">
+          {loadingTasks ? (
+            <SkeletonList count={2} />
+          ) : todayTasks.length === 0 ? (
+            <EmptyState>
+              No tasks scheduled.{" "}
+              <Link href="/roadmap/set-date" className="text-ember font-medium no-underline">Set a test date</Link>{" "}
+              to build your roadmap.
+            </EmptyState>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {todayTasks.map(task => (
+                <div
+                  key={task.id}
+                  className={`flex items-start gap-3 px-3.5 py-3 bg-[rgba(255,255,255,0.025)] border border-edge rounded-xl transition-opacity duration-200 ${task.completed ? "opacity-45" : ""}`}
+                >
+                  <div
+                    className={`w-[18px] h-[18px] rounded-full border-[1.5px] flex items-center justify-center shrink-0 mt-px transition-all duration-200 ${
+                      task.completed
+                        ? "border-flame bg-flame"
+                        : "border-edge-2 bg-transparent"
+                    }`}
+                  >
+                    {task.completed && (
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-[13.5px] font-medium mb-0.5 ${task.completed ? "line-through text-whisper" : "text-text"}`}>
+                      {task.title}
+                    </div>
+                    <div className="text-[11.5px] text-whisper">
+                      {task.duration_min} min · {task.type}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+    </div>
   );
 }

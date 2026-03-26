@@ -23,65 +23,47 @@ export default function AudioRecorder({ title, onUploaded }: Props) {
   const animRef = useRef<number | null>(null);
   const barsRef = useRef<number[]>(Array(24).fill(4));
 
-  /* ── Request mic permission on mount ── */
   useEffect(() => {
     navigator.mediaDevices?.getUserMedia({ audio: true })
-      .then(stream => {
-        stream.getTracks().forEach(t => t.stop());
-        setHasPermission(true);
-      })
+      .then(stream => { stream.getTracks().forEach(t => t.stop()); setHasPermission(true); })
       .catch(() => setHasPermission(false));
     return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
   }, []);
 
-  /* ── Start recording ── */
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr     = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
       setMediaRecorder(mr);
       setPhase("recording");
-
       mr.ondataavailable = e => { if (e.data.size > 0) appendChunk(e.data); };
       mr.start(1000);
-
-      /* Tick timer */
       const interval = setInterval(tickDuration, 1000);
       setTimerInterval(interval);
-
-      /* Fake waveform animation */
       const animate = () => {
-        barsRef.current = barsRef.current.map(() =>
-          Math.max(4, Math.min(40, Math.random() * 40))
-        );
+        barsRef.current = barsRef.current.map(() => Math.max(4, Math.min(40, Math.random() * 40)));
         animRef.current = requestAnimationFrame(animate);
       };
       animRef.current = requestAnimationFrame(animate);
-
-    } catch (err) {
-      setError("Could not access microphone. Please check your permissions.");
+    } catch {
+      setError("Could not access microphone.");
       toast.error("Microphone access denied.");
     }
   }
 
-  /* ── Stop and upload ── */
   async function stopRecording() {
     const { mediaRecorder, audioChunks, timerInterval } = store;
     if (!mediaRecorder) return;
-
     if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
-    if (timerInterval)   clearInterval(timerInterval);
-
+    if (timerInterval) clearInterval(timerInterval);
     setPhase("stopped");
-
     mediaRecorder.onstop = async () => {
       const blob = new Blob([...audioChunks], { type: "audio/webm" });
       setAudioBlob(blob);
       setPhase("uploading");
-
       try {
-        const file       = new File([blob], `${title}.webm`, { type: "audio/webm" });
-        const recording  = await recordingsApi.upload(file, title);
+        const file = new File([blob], `${title}.webm`, { type: "audio/webm" });
+        const recording = await recordingsApi.upload(file, title);
         setRecordingId(recording.id);
         setPhase("processing");
         onUploaded(recording.id);
@@ -90,24 +72,19 @@ export default function AudioRecorder({ title, onUploaded }: Props) {
         toast.error("Upload failed.");
       }
     };
-
     mediaRecorder.stop();
     mediaRecorder.stream.getTracks().forEach(t => t.stop());
   }
 
-  /* ── Format duration ── */
   const secs  = Math.floor(durationMs / 1000);
-  const mm    = String(Math.floor(secs / 60)).padStart(2, "0");
-  const ss    = String(secs % 60).padStart(2, "0");
-  const timer = `${mm}:${ss}`;
+  const timer = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
 
   if (hasPermission === false) {
     return (
-      <div className="ar-no-perm">
-        <style>{`.ar-no-perm{text-align:center;padding:40px 24px;color:var(--soft);font-size:14px;line-height:1.65;}`}</style>
-        <p style={{ fontSize: 28, marginBottom: 12 }}>🎙</p>
-        <p>Microphone access was denied.</p>
-        <p style={{ marginTop: 6, fontSize: 13, color: "var(--whisper)" }}>
+      <div className="text-center py-10 px-6">
+        <p className="text-[28px] mb-3">🎙</p>
+        <p className="text-sm text-soft">Microphone access was denied.</p>
+        <p className="text-[13px] text-whisper mt-1.5">
           Please allow microphone access in your browser settings and reload the page.
         </p>
       </div>
@@ -115,192 +92,57 @@ export default function AudioRecorder({ title, onUploaded }: Props) {
   }
 
   return (
-    <>
-      <style>{`
-        .ar-wrap {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 28px;
-          padding: 12px 0;
-        }
-
-        /* Waveform */
-        .ar-wave {
-          display: flex;
-          align-items: center;
-          gap: 3px;
-          height: 56px;
-        }
-        .ar-bar {
-          width: 4px;
-          border-radius: 100px;
-          background: var(--flame);
-          opacity: 0.6;
-          transition: height 0.1s ease;
-          min-height: 4px;
-        }
-        .ar-bar.idle { height: 4px !important; opacity: 0.2; }
-
-        /* Timer */
-        .ar-timer {
-          font-family: 'Playfair Display', serif;
-          font-size: 42px;
-          font-weight: 600;
-          color: var(--text);
-          letter-spacing: -0.02em;
-          line-height: 1;
-        }
-        .ar-timer-label {
-          font-size: 11px;
-          color: var(--whisper);
-          letter-spacing: 1.4px;
-          text-transform: uppercase;
-          text-align: center;
-          margin-top: -8px;
-        }
-
-        /* Record button */
-        .ar-btn-wrap {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-        }
-        .ar-btn {
-          width: 72px;
-          height: 72px;
-          border-radius: 50%;
-          border: none;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-          position: relative;
-        }
-        .ar-btn.start {
-          background: linear-gradient(145deg, var(--ember), #9b2a10);
-          box-shadow: 0 0 0 8px rgba(217,79,43,0.12), 0 4px 24px rgba(217,79,43,0.35);
-        }
-        .ar-btn.start:hover {
-          transform: scale(1.06);
-          box-shadow: 0 0 0 12px rgba(217,79,43,0.1), 0 6px 30px rgba(217,79,43,0.45);
-        }
-        .ar-btn.stop {
-          background: rgba(255,255,255,0.08);
-          border: 2px solid var(--edge2);
-          box-shadow: none;
-        }
-        .ar-btn.stop:hover { transform: scale(1.04); background: rgba(255,255,255,0.12); }
-
-        /* Pulse ring when recording */
-        .ar-btn.start::before {
-          content: '';
-          position: absolute;
-          inset: -10px;
-          border-radius: 50%;
-          border: 2px solid rgba(217,79,43,0.25);
-          animation: arPulse 1.8s ease-in-out infinite;
-        }
-        @keyframes arPulse {
-          0%,100% { transform: scale(1); opacity: 0.4; }
-          50%      { transform: scale(1.12); opacity: 0; }
-        }
-
-        .ar-btn-icon {
-          width: 24px;
-          height: 24px;
-          border-radius: 4px;
-          background: #fff;
-        }
-        .ar-btn-icon.mic {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: #fff;
-        }
-        .ar-btn-label {
-          font-size: 12px;
-          color: var(--whisper);
-          letter-spacing: 0.04em;
-          text-align: center;
-        }
-
-        /* States */
-        .ar-status {
-          font-size: 13px;
-          color: var(--soft);
-          font-weight: 300;
-          text-align: center;
-          line-height: 1.55;
-        }
-        .ar-uploading {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 14px;
-          color: var(--soft);
-        }
-        .ar-spinner {
-          width: 18px; height: 18px;
-          border: 2px solid var(--edge2);
-          border-top-color: var(--ember);
-          border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          flex-shrink: 0;
-        }
-      `}</style>
-
-      <div className="ar-wrap">
-        {/* Waveform */}
-        <div className="ar-wave">
-          {barsRef.current.map((h, i) => (
-            <div
-              key={i}
-              className={`ar-bar${phase !== "recording" ? " idle" : ""}`}
-              style={{ height: phase === "recording" ? `${h}px` : "4px" }}
-            />
-          ))}
-        </div>
-
-        {/* Timer */}
-        {(phase === "recording" || phase === "stopped") && (
-          <div>
-            <div className="ar-timer">{timer}</div>
-            <div className="ar-timer-label">recording</div>
-          </div>
-        )}
-
-        {/* Controls */}
-        {phase === "uploading" || phase === "processing" ? (
-          <div className="ar-uploading">
-            <div className="ar-spinner" />
-            <span>Uploading audio…</span>
-          </div>
-        ) : phase === "idle" || phase === "error" ? (
-          <div className="ar-btn-wrap">
-            <button className="ar-btn start" onClick={startRecording} title="Start recording">
-              <div className="ar-btn-icon mic" />
-            </button>
-            <span className="ar-btn-label">Tap to record</span>
-          </div>
-        ) : phase === "recording" ? (
-          <div className="ar-btn-wrap">
-            <button className="ar-btn stop" onClick={stopRecording} title="Stop recording">
-              <div className="ar-btn-icon" />
-            </button>
-            <span className="ar-btn-label">Tap to stop</span>
-          </div>
-        ) : null}
-
-        {phase === "idle" && (
-          <p className="ar-status">
-            Your lecture will be transcribed automatically.<br/>
-            A personalised study pack will be ready in minutes.
-          </p>
-        )}
+    <div className="flex flex-col items-center gap-7 py-3">
+      {/* Waveform */}
+      <div className="flex items-center gap-[3px] h-14">
+        {barsRef.current.map((h, i) => (
+          <div
+            key={i}
+            className={`w-1 rounded-pill bg-flame transition-[height] duration-100 ${phase !== "recording" ? "opacity-20" : "opacity-60"}`}
+            style={{ height: phase === "recording" ? `${h}px` : "4px", minHeight: "4px" }}
+          />
+        ))}
       </div>
-    </>
+
+      {/* Timer */}
+      {(phase === "recording" || phase === "stopped") && (
+        <div className="text-center">
+          <div className="font-serif text-[42px] font-semibold text-text tracking-[-0.02em] leading-none">{timer}</div>
+          <div className="text-[11px] text-whisper tracking-[1.4px] uppercase mt-1">recording</div>
+        </div>
+      )}
+
+      {/* Uploading state */}
+      {(phase === "uploading" || phase === "processing") ? (
+        <div className="flex items-center gap-2.5 text-sm text-soft">
+          <span className="w-[18px] h-[18px] border-2 border-edge-2 border-t-ember rounded-full animate-spin shrink-0" />
+          Uploading audio…
+        </div>
+      ) : phase === "idle" || phase === "error" ? (
+        /* Record button */
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={startRecording}
+            title="Start recording"
+            className="relative w-[72px] h-[72px] rounded-full bg-gradient-to-br from-ember to-[#9b2a10] border-none cursor-pointer flex items-center justify-center shadow-[0_0_0_8px_rgba(217,79,43,0.12),0_4px_24px_rgba(217,79,43,0.35)] transition-all hover:scale-105 hover:shadow-[0_0_0_12px_rgba(217,79,43,0.1),0_6px_30px_rgba(217,79,43,0.45)]"
+          >
+            <div className="w-5 h-5 rounded-full bg-white" />
+          </button>
+          <span className="text-xs text-whisper tracking-[0.04em]">Tap to record</span>
+        </div>
+      ) : phase === "recording" ? (
+        /* Stop button */
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={stopRecording}
+            title="Stop recording"
+            className="relative w-[72px] h-[72px] rounded-full bg-surface border-2 border-[rgba(217,79,43,0.4)] cursor-pointer flex items-center justify-center shadow-[0_0_0_8px_rgba(217,79,43,0.06)] transition-all hover:border-[rgba(217,79,43,0.6)] hover:shadow-[0_0_0_12px_rgba(217,79,43,0.08)]"
+          >
+            <div className="w-5 h-5 rounded-[4px] bg-ember" />
+          </button>
+          <span className="text-xs text-whisper tracking-[0.04em]">Tap to stop</span>
+        </div>
+      ) : null}
+    </div>
   );
 }
