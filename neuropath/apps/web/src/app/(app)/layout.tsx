@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuthStore } from "@/store/auth.store";
-import Nav from "@/components/layout/Nav";
+import { useAuthStore } from "../../store/auth.store";
+import Nav from "../../components/layout/Nav";
 
 const MOCK_USER = {
   id: "mock-user-001",
   name: "Alex Johnson",
   email: "student@school.edu",
   grade_level: 10,
-  learning_profile: { practice: 0.45, teach_back: 0.28, flashcards: 0.17, visual: 0.10 },
+  learning_profile: {
+    practice: 0.45,
+    teach_back: 0.28,
+    flashcards: 0.17,
+    visual: 0.1,
+  },
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -22,14 +27,12 @@ const MOCK_SESSION = {
   user_id: "mock-user-001",
 };
 
-export default function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router   = useRouter();
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const { user, session, isLoading, setUser, setSession, setIsLoading } = useAuthStore();
+  const { user, session, isLoading, setUser, setSession, setIsLoading } =
+    useAuthStore();
+
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -39,8 +42,8 @@ export default function AppLayout({
   useEffect(() => {
     if (!hydrated) return;
 
-    /* In mock mode, seed a demo user */
     if (!process.env.NEXT_PUBLIC_API_URL) {
+      /* Dev / mock mode — seed a demo user so every page works */
       if (!user) {
         setUser(MOCK_USER);
         setSession(MOCK_SESSION);
@@ -49,18 +52,29 @@ export default function AppLayout({
       return;
     }
 
-    /* If not loading and no session, redirect to login */
+    /* Production — redirect to login if not authenticated */
     if (!isLoading && !session) {
       router.replace(`/login?from=${pathname}`);
     }
-  }, [hydrated, user, session, isLoading, setUser, setSession, setIsLoading, router, pathname]);
+  }, [
+    hydrated,
+    user,
+    session,
+    isLoading,
+    setUser,
+    setSession,
+    setIsLoading,
+    router,
+    pathname,
+  ]);
 
   if (!hydrated) return null;
 
   return (
     <div className="min-h-svh bg-ink flex flex-col">
       <Nav />
-      <main className="flex-1 pt-20">{children}</main>
+      {/* pt-[72px] on mobile matches the nav height + gap, sm:pt-[80px] on desktop */}
+      <main className="flex-1 pt-[72px] sm:pt-[80px]">{children}</main>
     </div>
   );
 }

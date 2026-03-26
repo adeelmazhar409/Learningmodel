@@ -1,28 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuthStore }       from "@/store/auth.store";
-import { useDiagnosticStore } from "@/store/diagnostic.store";
-import { diagnosticApi }      from "@/lib/api/diagnostic.api";
-import FlashcardRound  from "@/components/diagnostic/FlashcardRound";
-import PracticeRound   from "@/components/diagnostic/PracticeRound";
-import VisualRound     from "@/components/diagnostic/VisualRound";
-import TeachBackRound  from "@/components/diagnostic/TeachBackRound";
-import BreakScreen     from "@/components/diagnostic/BreakScreen";
-import RecallTest      from "@/components/diagnostic/RecallTest";
-import ProfileResult   from "@/components/diagnostic/ProfileResult";
-import type { DiagnosticAnswer } from "@neuropath/types";
+import { useAuthStore } from "../../../store/auth.store";
+import { useDiagnosticStore } from "../../../store/diagnostic.store";
+import { diagnosticApi } from "../../../lib/api/diagnostic.api";
+import FlashcardRound from "../../../components/diagnostic/FlashcardRound";
+import PracticeRound from "../../../components/diagnostic/PracticeRound";
+import VisualRound from "../../../components/diagnostic/VisualRound";
+import TeachBackRound from "../../../components/diagnostic/TeachBackRound";
+import BreakScreen from "../../../components/diagnostic/BreakScreen";
+import RecallTest from "../../../components/diagnostic/RecallTest";
+import ProfileResult from "../../../components/diagnostic/ProfileResult";
 import toast from "react-hot-toast";
 
+/* ─────────────────────────────────────────
+   Local type — safe subset of DiagnosticAnswer
+───────────────────────────────────────── */
+interface DiagAnswer {
+  question_id: string;
+  method: string;
+  correct: boolean;
+  time_ms: number;
+  user_answer?: string;
+}
+
+/* ─────────────────────────────────────────
+   Phase metadata
+───────────────────────────────────────── */
 const PHASE_LABELS: Record<string, string> = {
-  idle:               "Getting ready",
-  round_flashcards:   "Round 1 — Flashcards",
-  round_practice:     "Round 2 — Practice",
-  round_visual:       "Round 3 — Visual",
-  round_teach_back:   "Round 4 — Teach-back",
-  break:              "Break",
-  recall:             "Memory Recall Test",
-  complete:           "Results",
+  idle: "Getting ready",
+  round_flashcards: "Round 1 — Flashcards",
+  round_practice: "Round 2 — Practice",
+  round_visual: "Round 3 — Visual",
+  round_teach_back: "Round 4 — Teach-back",
+  break: "Distraction Break",
+  recall: "Memory Recall Test",
+  complete: "Results",
 };
 
 const PHASE_STEPS = [
@@ -33,55 +46,197 @@ const PHASE_STEPS = [
   "break",
   "recall",
   "complete",
-];
+] as const;
 
+/* ─────────────────────────────────────────
+   SVG Icons
+───────────────────────────────────────── */
+function IcBrain({ s = 22 }: { s?: number }) {
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.41-4.28 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24A2.5 2.5 0 0 1 9.5 2z" />
+      <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 1.41-4.28 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24A2.5 2.5 0 0 0 14.5 2z" />
+    </svg>
+  );
+}
+function IcRefresh({ s = 13 }: { s?: number }) {
+  return (
+    <svg
+      width={s}
+      height={s}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Phase progress dots
+───────────────────────────────────────── */
+function PhaseDots({ current }: { current: string }) {
+  const steps = PHASE_STEPS.filter((s) => s !== "complete");
+  const idx = PHASE_STEPS.indexOf(current as (typeof PHASE_STEPS)[number]);
+  return (
+    <div className="flex items-center gap-1.5 sm:gap-2 mb-6">
+      {steps.map((step, i) => {
+        const isDone = i < idx;
+        const isCurrent = i === idx;
+        return (
+          <div key={step} className="flex items-center gap-1.5 sm:gap-2">
+            <div
+              className={[
+                "rounded-full transition-all duration-300",
+                isDone
+                  ? "w-2 h-2 bg-flame"
+                  : isCurrent
+                    ? "w-3 h-3 bg-ember shadow-[0_0_8px_rgba(217,79,43,0.6)]"
+                    : "w-2 h-2 bg-edge",
+              ].join(" ")}
+            />
+            {i < steps.length - 1 && (
+              <div
+                className={`h-px transition-all duration-500 ${isDone ? "w-4 sm:w-8 bg-flame" : "w-4 sm:w-8 bg-edge"}`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Topic intro card — shown at start of each round
+───────────────────────────────────────── */
+function TopicIntroCard({ topic, intro }: { topic: string; intro: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const SHORT = 180;
+  const isLong = intro.length > SHORT;
+  const shown = expanded || !isLong ? intro : intro.slice(0, SHORT) + "…";
+
+  return (
+    <div className="relative overflow-hidden bg-[rgba(217,79,43,0.04)] border border-[rgba(217,79,43,0.18)] rounded-2xl p-4 sm:p-5 mb-5">
+      <div className="absolute top-0 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-flame to-transparent opacity-50" />
+      <p className="text-[10px] font-semibold text-flame tracking-[2px] uppercase mb-1.5">
+        Today&apos;s topic: {topic}
+      </p>
+      <p className="text-[13px] text-soft font-light leading-relaxed">
+        {shown}
+      </p>
+      {isLong && (
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          className="text-[11.5px] text-flame font-semibold mt-1.5 cursor-pointer bg-transparent border-none hover:opacity-75 transition-opacity"
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Main page
+───────────────────────────────────────── */
 export default function DiagnosticPage() {
-  const { user, setUser }  = useAuthStore();
-  const store              = useDiagnosticStore();
+  const { user, setUser } = useAuthStore();
+  const store = useDiagnosticStore();
   const {
-    phase, profile, answers,
-    roundQuestions, recallQuestions,
-    startDiagnostic, setRoundQuestions,
-    setRecallQuestions, advancePhase,
-    setProfile, reset,
+    phase,
+    profile,
+    answers,
+    roundQuestions,
+    recallQuestions,
+    startDiagnostic,
+    setRoundQuestions,
+    setRecallQuestions,
+    advancePhase,
+    setProfile,
+    reset,
   } = store;
 
-  const [loading,    setLoading]    = useState(false);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [topicIntro, setTopicIntro] = useState("");
+  const [scores, setScores] = useState<Record<
+    string,
+    { accuracy: number; speed: number; retention: number; final: number }
+  > | null>(null);
 
-  /* ── Start the diagnostic on mount if not already running ── */
+  /* Store all round questions keyed by method so we can serve each phase */
+  const [allRoundQ, setAllRoundQ] = useState<Record<string, unknown[]>>({});
+
+  /* Start diagnostic on mount if idle */
   useEffect(() => {
     if (phase !== "idle") return;
     initDiagnostic();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function initDiagnostic() {
     setLoading(true);
     try {
-      const gradeNum   = user?.grade_level ?? 10;
-      const gradeBand  = gradeNum <= 6  ? "5-6"
-                       : gradeNum <= 8  ? "7-8"
-                       : gradeNum <= 10 ? "9-10"
-                       :                  "11-12";
+      const gradeNum = user?.grade_level ?? 10;
+      const gradeBand =
+        gradeNum <= 6
+          ? "5-6"
+          : gradeNum <= 8
+            ? "7-8"
+            : gradeNum <= 10
+              ? "9-10"
+              : "11-12";
 
-      const res = await diagnosticApi.start({
-        subject:    "General (Critical Thinking)",
-        grade_band: gradeBand,
-      });
+      const res = await (
+        diagnosticApi as unknown as {
+          start: (p: { subject: string; grade_band: string }) => Promise<{
+            attempt_id: string;
+            round_questions: unknown[];
+            recall_questions: unknown[];
+            topic: string;
+            topic_intro: string;
+          }>;
+        }
+      ).start({ subject: "Learning Science", grade_band: gradeBand });
+
+      /* Store topic info */
+      setTopic(res.topic ?? "");
+      setTopicIntro(res.topic_intro ?? "");
+
+      /* Group round questions by method */
+      const byMethod: Record<string, unknown[]> = {};
+      for (const q of res.round_questions as Array<{ method: string }>) {
+        if (!byMethod[q.method]) byMethod[q.method] = [];
+        byMethod[q.method].push(q);
+      }
+      setAllRoundQ(byMethod);
+
+      /* Seed flashcards for round 1 */
+      setRoundQuestions(
+        (byMethod["flashcards"] as Parameters<typeof setRoundQuestions>[0]) ??
+          [],
+      );
+      setRecallQuestions(
+        res.recall_questions as Parameters<typeof setRecallQuestions>[0],
+      );
 
       startDiagnostic(res.attempt_id);
-
-      /* Split questions by method for each round */
-      const byMethod = (m: string) =>
-        res.round_questions.filter(q => q.method === m);
-
-      setRoundQuestions(byMethod("flashcards"));
-      setRecallQuestions(res.recall_questions);
-
-      /* Store all round questions so we can serve per-phase */
-      store.setRoundQuestions(byMethod("flashcards"));
-
     } catch {
       toast.error("Could not load diagnostic. Please refresh.");
     } finally {
@@ -89,48 +244,55 @@ export default function DiagnosticPage() {
     }
   }
 
-  /* ── Called when user moves from one round to the next ── */
+  /* Load next method's questions, then advance phase */
   function handleRoundComplete() {
-    const gradeNum   = user?.grade_level ?? 10;
-    const gradeBand  = gradeNum <= 6  ? "5-6"
-                     : gradeNum <= 8  ? "7-8"
-                     : gradeNum <= 10 ? "9-10"
-                     :                  "11-12";
-
-    /* Load the next round's questions into the store */
-    const nextPhaseMap: Record<string, string> = {
+    const nextMethodMap: Record<string, string> = {
       round_flashcards: "practice",
-      round_practice:   "visual",
-      round_visual:     "teach_back",
+      round_practice: "visual",
+      round_visual: "teach_back",
     };
-    const nextMethod = nextPhaseMap[phase];
-    if (nextMethod && store.attemptId) {
-      diagnosticApi
-        .start({ subject: "General (Critical Thinking)", grade_band: gradeBand })
-        .then(res => {
-          const qs = res.round_questions.filter(q => q.method === nextMethod);
-          setRoundQuestions(qs);
-        })
-        .catch(() => {});
+    const nextMethod = nextMethodMap[phase];
+    if (nextMethod && allRoundQ[nextMethod]) {
+      setRoundQuestions(
+        allRoundQ[nextMethod] as Parameters<typeof setRoundQuestions>[0],
+      );
     }
     advancePhase();
   }
 
-  /* ── Submit all recall answers for scoring ── */
-  async function handleRecallComplete(recallAnswers: DiagnosticAnswer[]) {
+  /* Submit recall answers → score → complete */
+  async function handleRecallComplete(recallAnswers: DiagAnswer[]) {
     if (!store.attemptId) return;
     setSubmitting(true);
     try {
-      const res = await diagnosticApi.submit({
+      const res = await (
+        diagnosticApi as unknown as {
+          submit: (p: {
+            attempt_id: string;
+            answers: DiagAnswer[];
+          }) => Promise<{
+            scores: Record<
+              string,
+              {
+                accuracy: number;
+                speed: number;
+                retention: number;
+                final: number;
+              }
+            >;
+            primary_method: string;
+            secondary_method: string;
+            learning_profile: Record<string, number>;
+          }>;
+        }
+      ).submit({
         attempt_id: store.attemptId,
-        answers:    [...answers, ...recallAnswers],
+        answers: [...answers, ...recallAnswers] as DiagAnswer[],
       });
-      setProfile(res.learning_profile);
 
-      /* Update user profile in auth store */
-      if (user) {
-        setUser({ ...user, learning_profile: res.learning_profile });
-      }
+      setScores(res.scores);
+      setProfile(res.learning_profile as Parameters<typeof setProfile>[0]);
+      if (user) setUser({ ...user, learning_profile: res.learning_profile });
     } catch {
       toast.error("Could not score your diagnostic. Please try again.");
     } finally {
@@ -138,181 +300,213 @@ export default function DiagnosticPage() {
     }
   }
 
-  const stepIdx = PHASE_STEPS.indexOf(phase);
+  const stepIdx = PHASE_STEPS.indexOf(phase as (typeof PHASE_STEPS)[number]);
+  const showTopicIntro =
+    phase !== "idle" && phase !== "complete" && phase !== "break" && topicIntro;
 
-  /* ── Render ── */
+  /* ─────────────────────────────────────────
+     Render
+  ───────────────────────────────────────── */
   return (
-    <>
-      <style>{`
-        .diag-page {
-          max-width: 820px;
-          margin: 0 auto;
-          padding: 40px 24px 80px;
-        }
+    <div className="min-h-screen bg-ink">
+      {/* Ambient glow */}
+      <div
+        aria-hidden
+        className="fixed top-0 left-1/2 -translate-x-1/2 w-[460px] h-[280px] pointer-events-none z-0"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[rgba(217,79,43,0.07)] to-transparent blur-3xl" />
+      </div>
 
-        /* Phase header */
-        .diag-header {
-          margin-bottom: 40px;
-        }
-        .diag-phase-steps {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin-bottom: 16px;
-          flex-wrap: wrap;
-        }
-        .diag-step-dot {
-          width: 8px; height: 8px;
-          border-radius: 50%;
-          background: var(--edge2);
-          transition: background 0.3s;
-          flex-shrink: 0;
-        }
-        .diag-step-dot.done    { background: var(--flame); }
-        .diag-step-dot.current { background: var(--ember); box-shadow: 0 0 6px rgba(217,79,43,0.5); }
-        .diag-step-line {
-          flex: 1;
-          height: 1px;
-          background: var(--edge);
-          min-width: 12px;
-        }
-
-        .diag-phase-label {
-          font-size: 11px;
-          color: var(--flame);
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-          font-weight: 500;
-        }
-        .diag-phase-title {
-          font-family: 'Playfair Display', serif;
-          font-size: clamp(22px, 3.5vw, 32px);
-          font-weight: 500;
-          color: var(--text);
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-        }
-
-        /* Loading */
-        .diag-loading {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          padding: 80px 24px;
-          text-align: center;
-        }
-        .diag-loading-spinner {
-          width: 36px; height: 36px;
-          border: 3px solid var(--edge);
-          border-top-color: var(--ember);
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        .diag-loading-text {
-          font-size: 15px;
-          color: var(--soft);
-          font-weight: 300;
-          line-height: 1.6;
-        }
-
-        /* Reset */
-        .diag-reset {
-          margin-top: 20px;
-          text-align: center;
-        }
-        .diag-reset-btn {
-          background: none;
-          border: 1px solid var(--edge);
-          color: var(--whisper);
-          font-size: 12px;
-          padding: 7px 16px;
-          border-radius: 100px;
-          cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
-          transition: color 0.2s, border-color 0.2s;
-        }
-        .diag-reset-btn:hover { color: var(--soft); border-color: var(--edge2); }
-
-        @media (max-width: 640px) {
-          .diag-page { padding: 28px 18px 60px; }
-        }
-      `}</style>
-
-      <div className="diag-page">
-        {/* Phase stepper */}
+      <div className="relative z-10 max-w-[820px] mx-auto px-4 sm:px-6 pt-6 pb-28">
+        {/* ── Page header (hidden during complete phase) ── */}
         {phase !== "idle" && phase !== "complete" && (
-          <div className="diag-header">
-            <div className="diag-phase-steps">
-              {PHASE_STEPS.filter(s => s !== "complete").map((s, i) => (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6, flex: i < PHASE_STEPS.length - 2 ? 1 : 0 }}>
-                  <div className={`diag-step-dot${i < stepIdx ? " done" : i === stepIdx ? " current" : ""}`}/>
-                  {i < PHASE_STEPS.length - 2 && <div className="diag-step-line"/>}
+          <div className="mb-7">
+            <p className="flex items-center gap-2 text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-4">
+              <span className="w-4 h-px bg-flame" />
+              Diagnostic
+            </p>
+
+            {/* Phase progress dots */}
+            <PhaseDots current={phase} />
+
+            {/* Phase label + step count */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h1 className="font-serif text-[clamp(20px,4.5vw,32px)] font-medium text-text tracking-[-0.03em] leading-tight mb-1">
+                  {PHASE_LABELS[phase] ?? "Diagnostic"}
+                </h1>
+                <p className="text-[12.5px] sm:text-[13.5px] text-soft font-light">
+                  {phase === "break"
+                    ? "Clearing your working memory — mandatory for accurate results."
+                    : phase === "recall"
+                      ? "20 questions · no hints · answer from memory only."
+                      : stepIdx >= 0
+                        ? `Step ${stepIdx + 1} of ${PHASE_STEPS.length - 1}`
+                        : ""}
+                </p>
+              </div>
+              {stepIdx >= 0 && phase !== "break" && (
+                <div className="shrink-0 px-3 py-1.5 rounded-full bg-surface border border-edge text-[11px] text-whisper font-semibold w-fit">
+                  {stepIdx + 1} / {PHASE_STEPS.length}
                 </div>
-              ))}
+              )}
             </div>
-            <p className="diag-phase-label">
-              {phase === "break" ? "Distraction break" : `Step ${stepIdx + 1} of ${PHASE_STEPS.length - 1}`}
-            </p>
-            <h1 className="diag-phase-title">{PHASE_LABELS[phase]}</h1>
           </div>
         )}
 
-        {/* Loading */}
+        {/* ── Topic intro card (shown for all active rounds) ── */}
+        {showTopicIntro && <TopicIntroCard topic={topic} intro={topicIntro} />}
+
+        {/* ── Loading / calculating state ── */}
         {(loading || submitting) && (
-          <div className="diag-loading">
-            <div className="diag-loading-spinner"/>
-            <p className="diag-loading-text">
-              {submitting ? "Calculating your learning profile…" : "Preparing your diagnostic…"}
-            </p>
+          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-surface border border-edge flex items-center justify-center text-flame">
+              <IcBrain />
+            </div>
+            <div>
+              <p className="font-serif text-[18px] font-medium text-text mb-1.5">
+                {submitting
+                  ? "Calculating your learning profile…"
+                  : "Preparing your diagnostic…"}
+              </p>
+              <p className="text-[13px] text-soft font-light">
+                This will only take a moment.
+              </p>
+            </div>
+            <div className="w-7 h-7 border-2 border-edge border-t-ember rounded-full animate-spin" />
           </div>
         )}
 
-        {/* Phases */}
+        {/* ── Phase content ── */}
         {!loading && !submitting && (
-          <>
+          <div>
             {phase === "round_flashcards" && roundQuestions.length > 0 && (
-              <FlashcardRound questions={roundQuestions} onComplete={handleRoundComplete}/>
-            )}
-            {phase === "round_practice" && roundQuestions.length > 0 && (
-              <PracticeRound questions={roundQuestions} onComplete={handleRoundComplete}/>
-            )}
-            {phase === "round_visual" && roundQuestions.length > 0 && (
-              <VisualRound questions={roundQuestions} onComplete={handleRoundComplete}/>
-            )}
-            {phase === "round_teach_back" && roundQuestions.length > 0 && (
-              <TeachBackRound questions={roundQuestions} onComplete={advancePhase}/>
-            )}
-            {phase === "break" && (
-              <BreakScreen onComplete={advancePhase}/>
-            )}
-            {phase === "recall" && recallQuestions.length > 0 && (
-              <RecallTest questions={recallQuestions} onComplete={handleRecallComplete}/>
-            )}
-            {phase === "complete" && profile && store.answers.length > 0 && (
-              <ProfileResult
-                profile={profile}
-                scores={{
-                  flashcards:  { accuracy: 60, speed: 75, retention: 55, final: 63 },
-                  practice:    { accuracy: 88, speed: 82, retention: 84, final: 86 },
-                  visual:      { accuracy: 52, speed: 68, retention: 48, final: 54 },
-                  teach_back:  { accuracy: 74, speed: 71, retention: 78, final: 74 },
-                }}
+              <FlashcardRound
+                questions={
+                  roundQuestions as Parameters<
+                    typeof FlashcardRound
+                  >[0]["questions"]
+                }
+                onComplete={handleRoundComplete}
               />
             )}
-          </>
-        )}
-
-        {/* Reset link */}
-        {phase !== "idle" && phase !== "complete" && !loading && (
-          <div className="diag-reset">
-            <button className="diag-reset-btn" onClick={() => { reset(); setTimeout(initDiagnostic, 100); }}>
-              Restart diagnostic
-            </button>
+            {phase === "round_practice" && roundQuestions.length > 0 && (
+              <PracticeRound
+                questions={
+                  roundQuestions as Parameters<
+                    typeof PracticeRound
+                  >[0]["questions"]
+                }
+                onComplete={handleRoundComplete}
+              />
+            )}
+            {phase === "round_visual" && roundQuestions.length > 0 && (
+              <VisualRound
+                questions={
+                  roundQuestions as Parameters<
+                    typeof VisualRound
+                  >[0]["questions"]
+                }
+                onComplete={handleRoundComplete}
+              />
+            )}
+            {phase === "round_teach_back" && roundQuestions.length > 0 && (
+              <TeachBackRound
+                questions={
+                  roundQuestions as Parameters<
+                    typeof TeachBackRound
+                  >[0]["questions"]
+                }
+                onComplete={advancePhase}
+              />
+            )}
+            {phase === "break" && <BreakScreen onComplete={advancePhase} />}
+            {phase === "recall" && recallQuestions.length > 0 && (
+              <RecallTest
+                questions={
+                  recallQuestions as Parameters<
+                    typeof RecallTest
+                  >[0]["questions"]
+                }
+                onComplete={handleRecallComplete}
+              />
+            )}
+            {phase === "complete" && profile && (
+              <>
+                {/* Complete header */}
+                <div className="mb-8">
+                  <p className="flex items-center gap-2 text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-2.5">
+                    <span className="w-4 h-px bg-flame" />
+                    Complete
+                  </p>
+                  <h1 className="font-serif text-[clamp(22px,5vw,36px)] font-medium text-text tracking-[-0.03em] leading-tight mb-2">
+                    Your learning profile
+                  </h1>
+                  <p className="text-[13.5px] text-soft font-light">
+                    Topic tested:{" "}
+                    <span className="text-text font-medium">{topic}</span>
+                  </p>
+                </div>
+                <ProfileResult
+                  profile={
+                    profile as Parameters<typeof ProfileResult>[0]["profile"]
+                  }
+                  scores={
+                    scores
+                      ? (scores as Parameters<
+                          typeof ProfileResult
+                        >[0]["scores"])
+                      : {
+                          flashcards: {
+                            accuracy: 60,
+                            speed: 75,
+                            retention: 55,
+                            final: 63,
+                          },
+                          practice: {
+                            accuracy: 88,
+                            speed: 82,
+                            retention: 84,
+                            final: 86,
+                          },
+                          visual: {
+                            accuracy: 52,
+                            speed: 68,
+                            retention: 48,
+                            final: 54,
+                          },
+                          teach_back: {
+                            accuracy: 74,
+                            speed: 71,
+                            retention: 78,
+                            final: 74,
+                          },
+                        }
+                  }
+                />
+              </>
+            )}
           </div>
         )}
+
+        {/* ── Restart button (active phases only) ── */}
+        {phase !== "idle" &&
+          phase !== "complete" &&
+          !loading &&
+          !submitting && (
+            <div className="mt-10 flex justify-center">
+              <button
+                onClick={() => {
+                  reset();
+                  setTimeout(initDiagnostic, 100);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge bg-transparent text-[12px] text-whisper font-semibold cursor-pointer hover:text-soft hover:border-edge-2 transition-all font-sans"
+              >
+                <IcRefresh /> Restart diagnostic
+              </button>
+            </div>
+          )}
       </div>
-    </>
+    </div>
   );
 }
