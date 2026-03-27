@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "../../../store/auth.store";
 import { useDiagnosticStore } from "../../../store/diagnostic.store";
 import { diagnosticApi } from "../../../lib/api/diagnostic.api";
@@ -123,8 +123,11 @@ function PhaseDots({ current }: { current: string }) {
 
 /* ─────────────────────────────────────────
    Topic intro card — shown at start of each round
+   FIX: collapsed by default so it doesn't bury
+   the round content below the fold.
 ───────────────────────────────────────── */
 function TopicIntroCard({ topic, intro }: { topic: string; intro: string }) {
+  // FIX: start collapsed so the round content is immediately visible
   const [expanded, setExpanded] = useState(false);
   const SHORT = 180;
   const isLong = intro.length > SHORT;
@@ -183,12 +186,28 @@ export default function DiagnosticPage() {
   /* Store all round questions keyed by method so we can serve each phase */
   const [allRoundQ, setAllRoundQ] = useState<Record<string, unknown[]>>({});
 
+  /* FIX: ref to scroll the round content into view when phase changes */
+  const roundRef = useRef<HTMLDivElement>(null);
+
   /* Start diagnostic on mount if idle */
   useEffect(() => {
     if (phase !== "idle") return;
     initDiagnostic();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* FIX: scroll the round into view whenever the active phase changes */
+  useEffect(() => {
+    if (phase !== "idle" && phase !== "complete" && roundRef.current) {
+      // Small timeout lets the DOM settle before scrolling
+      setTimeout(() => {
+        roundRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    }
+  }, [phase]);
 
   async function initDiagnostic() {
     setLoading(true);
@@ -227,7 +246,10 @@ export default function DiagnosticPage() {
       }
       setAllRoundQ(byMethod);
 
-      /* Seed flashcards for round 1 */
+      // startDiagnostic FIRST — it resets the store (including roundQuestions to [])
+      // so setRoundQuestions must come AFTER or it gets wiped
+      startDiagnostic(res.attempt_id);
+
       setRoundQuestions(
         (byMethod["flashcards"] as Parameters<typeof setRoundQuestions>[0]) ??
           [],
@@ -235,8 +257,6 @@ export default function DiagnosticPage() {
       setRecallQuestions(
         res.recall_questions as Parameters<typeof setRecallQuestions>[0],
       );
-
-      startDiagnostic(res.attempt_id);
     } catch {
       toast.error("Could not load diagnostic. Please refresh.");
     } finally {
@@ -354,7 +374,7 @@ export default function DiagnosticPage() {
           </div>
         )}
 
-        {/* ── Topic intro card (shown for all active rounds) ── */}
+        {/* ── Topic intro card — collapsed by default ── */}
         {showTopicIntro && <TopicIntroCard topic={topic} intro={topicIntro} />}
 
         {/* ── Loading / calculating state ── */}
@@ -377,9 +397,9 @@ export default function DiagnosticPage() {
           </div>
         )}
 
-        {/* ── Phase content ── */}
+        {/* ── Phase content — wrapped in ref div for auto-scroll ── */}
         {!loading && !submitting && (
-          <div>
+          <div ref={roundRef}>
             {phase === "round_flashcards" && roundQuestions.length > 0 && (
               <FlashcardRound
                 questions={
