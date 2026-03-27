@@ -1,113 +1,61 @@
+/* Google Fonts — must be first */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
 /* Tailwind base layers */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
-
-/* ── Shimmer animation for skeleton loaders ── */
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+/* ── Design Tokens ── */
+:root {
+  --ink:     #0c0c0e;
+  --ink2:    #111114;
+  --surface: #141418;
+  --lift:    #1c1c22;
+  --edge:    rgba(255,255,255,0.07);
+  --edge2:   rgba(255,255,255,0.13);
+  --flame:   #d94f2b;
+  --ember:   #e8603c;
+  --text:    #f0ede8;
+  --soft:    rgba(240,237,232,0.55);
+  --faint:   rgba(240,237,232,0.08);
+  --whisper: rgba(240,237,232,0.25);
 }
 
-/* ── Scrollbar styling ── */
-::-webkit-scrollbar {
-  width: 6px;
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: #0c0c0e;
+  color: #f0ede8;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 300;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.08);
-  border-radius: 100px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.14);
+::selection { background: rgba(217,79,43,0.28); color: #fff; }
+
+/* ── Grain overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)' opacity='0.032'/%3E%3C/svg%3E");
+  opacity: 0.55;
+  mix-blend-mode: overlay;
 }
 
-/* ── Staggered fade-in animation ── */
-@keyframes staggerFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ── Progress ring animation (SVG stroke-dashoffset) ── */
-@keyframes progressRing {
-  0% {
-    stroke-dashoffset: 283; /* 2 * π * 45 ≈ 283 for r=45 */
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* ── Subtle glow pulse ── */
-@keyframes glowPulse {
-  0%, 100% {
-    box-shadow: 0 0 12px 2px rgba(217, 79, 43, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 12px 2px rgba(217, 79, 43, 0.05);
-  }
-}
-
-/* ── Dashboard utility classes ── */
-@layer utilities {
-  /* Staggered fade-in delays */
-  .animate-stagger-1 {
-    animation: staggerFadeIn 0.5s ease-out 0.1s both;
-  }
-  .animate-stagger-2 {
-    animation: staggerFadeIn 0.5s ease-out 0.15s both;
-  }
-  .animate-stagger-3 {
-    animation: staggerFadeIn 0.5s ease-out 0.2s both;
-  }
-  .animate-stagger-4 {
-    animation: staggerFadeIn 0.5s ease-out 0.25s both;
-  }
-  .animate-stagger-5 {
-    animation: staggerFadeIn 0.5s ease-out 0.3s both;
-  }
-  .animate-stagger-6 {
-    animation: staggerFadeIn 0.5s ease-out 0.35s both;
-  }
-
-  /* Progress ring */
-  .animate-progress-ring {
-    animation: progressRing 1.2s ease-out forwards;
-  }
-
-  /* Glow pulse */
-  .animate-glow-pulse {
-    animation: glowPulse 2s ease-in-out infinite;
-  }
-
-  /* Gradient text — flame to ember */
-  .text-gradient-flame {
-    background: linear-gradient(135deg, #d94f2b, #e8603c);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-}
-
-@layer components {
-  /* Card hover lift */
-  .card-hover-lift {
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .card-hover-lift:hover {
-    transform: translateY(-2px);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  }
-}
+/* ── Keyframes ── */
+@keyframes riseIn    { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse     { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.65); } }
+@keyframes spin      { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes shimmer   { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes scrollX   { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes barFloat  { 0%, 100% { transform: rotate(-32deg) translateY(0); } 50% { transform: rotate(-32deg) translateY(-16px); } }
+@keyframes floatY    { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+@keyframes cmSlideUp { from { opacity: 0; transform: translateY(40px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes cmTimer   { from { width: 100%; } to { width: 0%; } }
