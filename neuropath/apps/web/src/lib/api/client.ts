@@ -1,17 +1,23 @@
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
 
+/* ─────────────────────────────────────────────────────────
+   MOCK MODE
+   When NEXT_PUBLIC_API_URL is not set all API calls
+   return mock data so the frontend works standalone.
+───────────────────────────────────────────────────────── */
 export const IS_MOCK =
   typeof window !== "undefined"
-    ? !process.env.NEXT_PUBLIC_API_URL ||
-      new URLSearchParams(window.location.search).get("mock") === "true"
+    ? !process.env.NEXT_PUBLIC_API_URL
     : !process.env.NEXT_PUBLIC_API_URL;
 
+/* ── Axios instance ── */
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
-  timeout: 20_000,
+  timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });
 
+/* ── Attach auth token on every request ── */
 apiClient.interceptors.request.use((config) => {
   if (typeof window === "undefined") return config;
   try {
@@ -25,11 +31,14 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+/* ── Normalise error responses ── */
 apiClient.interceptors.response.use(
   (res) => res,
   (err: AxiosError<{ message?: string }>) => {
     const message =
-      err.response?.data?.message ?? err.message ?? "Something went wrong.";
+      err.response?.data?.message ??
+      err.message ??
+      "Something went wrong. Please try again.";
     if (err.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("neuropath-auth");
       window.location.replace("/login");
@@ -38,6 +47,10 @@ apiClient.interceptors.response.use(
   }
 );
 
+/*
+  Backend wraps all responses as { success: true, data: {...} }
+  These helpers unwrap that automatically.
+*/
 export async function callOrMock<T>(
   realCall: () => Promise<T>,
   mockData: T,
@@ -51,21 +64,21 @@ export async function callOrMock<T>(
 }
 
 export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  const res = await apiClient.get<T>(url, config);
-  return res.data;
+  const res = await apiClient.get<{ success: boolean; data: T }>(url, config);
+  return res.data.data;
 }
 
 export async function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-  const res = await apiClient.post<T>(url, data, config);
-  return res.data;
+  const res = await apiClient.post<{ success: boolean; data: T }>(url, data, config);
+  return res.data.data;
 }
 
 export async function patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-  const res = await apiClient.patch<T>(url, data, config);
-  return res.data;
+  const res = await apiClient.patch<{ success: boolean; data: T }>(url, data, config);
+  return res.data.data;
 }
 
 export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  const res = await apiClient.delete<T>(url, config);
-  return res.data;
+  const res = await apiClient.delete<{ success: boolean; data: T }>(url, config);
+  return res.data.data;
 }

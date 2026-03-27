@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 const NAV_LINKS = ["How it works", "Features", "Diagnostics"];
 
 const FEATURES = [
-  { icon: "🧠", title: "Learning Profile Engine", wide: true,  body: "The diagnostic scores accuracy, speed, and retention across flashcards, practice problems, visual mapping, and teach-back. Your profile updates with every session — getting sharper over time." },
+  { icon: "🧠", title: "Learning Profile Engine", wide: true, body: "The diagnostic scores accuracy, speed, and retention across flashcards, practice problems, visual mapping, and teach-back. Your profile updates with every session — getting sharper over time." },
   { icon: "🎙", title: "Lecture Recording",       wide: false, body: "Tap to record. AI transcribes your lecture and structures the content automatically." },
   { icon: "📚", title: "Personalised Study Packs",wide: false, body: "Every pack is weighted to your profile. Two students get the same lecture — two completely different study materials." },
   { icon: "🗺", title: "Smart Roadmap",           wide: false, body: "Set a test date. Get a structured day-by-day plan that adapts as you progress." },
@@ -21,9 +21,9 @@ const STEPS = [
 ];
 
 const MARQUEE_ITEMS = [
-  "Performance-based diagnostics", "AI study pack generation", "Personalised flashcards",
-  "Growth mindset coaching", "Lecture transcription", "Smart study roadmap",
-  "Teach-back scripts", "Learning profile engine",
+  "Performance-based diagnostics","AI study pack generation","Personalised flashcards",
+  "Growth mindset coaching","Lecture transcription","Smart study roadmap",
+  "Teach-back scripts","Learning profile engine",
 ];
 
 export default function LandingPage() {
@@ -42,29 +42,23 @@ export default function LandingPage() {
   }, [menuOpen]);
 
   return (
-    <div className="bg-ink min-h-svh overflow-x-hidden">
+    <div className="bg-[#0c0c0e] min-h-svh overflow-x-hidden">
 
       {/* ── Mobile drawer ── */}
       <div className={`fixed inset-0 z-[490] bg-[rgba(9,9,11,0.97)] backdrop-blur-[28px] flex flex-col px-7 pt-[90px] pb-11 transition-all duration-300 ${menuOpen ? "opacity-100 visible" : "opacity-0 invisible"}`}>
         <ul className="list-none flex flex-col gap-0.5 flex-1">
           {NAV_LINKS.map(l => (
             <li key={l}>
-              <a
-                href={`#${l.toLowerCase().replace(/ /g, "-")}`}
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-[15px] font-serif text-[20px] text-[rgba(240,237,232,0.6)] no-underline rounded-xl border-b border-[rgba(255,255,255,0.04)] transition-all hover:text-text hover:bg-[rgba(255,255,255,0.04)]"
-              >
+              <a href={`#${l.toLowerCase().replace(/ /g,"-")}`} onClick={() => setMenuOpen(false)}
+                className="block px-4 py-[15px] font-serif text-[20px] text-[rgba(240,237,232,0.6)] no-underline rounded-xl border-b border-[rgba(255,255,255,0.04)] transition-all hover:text-[#f0ede8] hover:bg-[rgba(255,255,255,0.04)]">
                 {l}
               </a>
             </li>
           ))}
         </ul>
-        <div className="pt-6 border-t border-edge">
-          <Link
-            href="/signup"
-            onClick={() => setMenuOpen(false)}
-            className="w-full flex items-center justify-center bg-text text-ink rounded-pill py-3.5 text-sm font-medium no-underline transition-all hover:opacity-90"
-          >
+        <div className="pt-6 border-t border-[rgba(255,255,255,0.07)]">
+          <Link href="/signup" onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center justify-center bg-[#f0ede8] text-[#0c0c0e] rounded-full py-3.5 text-sm font-medium no-underline transition-all hover:opacity-90">
             Get started free
           </Link>
         </div>
@@ -72,169 +66,157 @@ export default function LandingPage() {
 
       {/* ── Nav ── */}
       <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[1100px] z-[500]">
-        <div className={`flex items-center justify-between bg-[rgba(13,13,15,0.85)] backdrop-blur-[24px] border rounded-pill py-2 pl-[22px] pr-2 transition-all duration-300 ${scrolled ? "border-edge-2 shadow-nav" : "border-edge"}`}>
-          <a href="#" className="flex items-center gap-[9px] no-underline text-text">
-            <div className="w-[26px] h-[26px] bg-gradient-to-br from-ember to-[#8c2410] rounded-full flex items-center justify-center shadow-orb">
+        <div className={`flex items-center justify-between bg-[rgba(13,13,15,0.85)] backdrop-blur-[24px] border rounded-full py-2 pl-[22px] pr-2 transition-all duration-300 ${scrolled ? "border-[rgba(255,255,255,0.13)] shadow-[0_8px_40px_rgba(0,0,0,0.55)]" : "border-[rgba(255,255,255,0.07)]"}`}>
+          <Link href="/" className="flex items-center gap-2.5 no-underline text-[#f0ede8]">
+            <div className="w-[26px] h-[26px] bg-gradient-to-br from-[#e8603c] to-[#8c2410] rounded-full flex items-center justify-center shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_4px_10px_rgba(217,79,43,0.25)]">
               <svg viewBox="0 0 20 20" fill="white" className="w-[11px] h-[11px]">
-                <path d="M10 2.5c-1.2 0-2.3.4-3.1 1.1L4.5 5.7A4.5 4.5 0 0 0 3 9v2a4.5 4.5 0 0 0 1.5 3.3l2.4 2.1A4.5 4.5 0 0 0 10 17.5c1.2 0 2.3-.4 3.1-1.1l2.4-2.1A4.5 4.5 0 0 0 17 11V9a4.5 4.5 0 0 0-1.5-3.3L13.1 3.6A4.5 4.5 0 0 0 10 2.5z" opacity=".25" />
-                <path d="M7 7h2.5v6H7V7zm3.5 0H13l-1.5 3 1.5 3h-2.5V7z" />
+                <path d="M10 2.5c-1.2 0-2.3.4-3.1 1.1L4.5 5.7A4.5 4.5 0 0 0 3 9v2a4.5 4.5 0 0 0 1.5 3.3l2.4 2.1A4.5 4.5 0 0 0 10 17.5c1.2 0 2.3-.4 3.1-1.1l2.4-2.1A4.5 4.5 0 0 0 17 11V9a4.5 4.5 0 0 0-1.5-3.3L13.1 3.6A4.5 4.5 0 0 0 10 2.5z" opacity=".25"/>
+                <path d="M7 7h2.5v6H7V7zm3.5 0H13l-1.5 3 1.5 3h-2.5V7z"/>
               </svg>
             </div>
             <span className="font-serif text-[15px] font-semibold tracking-[0.01em]">NeuroPath</span>
-          </a>
+          </Link>
+
           <ul className="hidden md:flex items-center gap-0.5 list-none absolute left-1/2 -translate-x-1/2">
             {NAV_LINKS.map(l => (
               <li key={l}>
-                <a href={`#${l.toLowerCase().replace(/ /g, "-")}`} className="block px-3.5 py-[7px] text-[13px] text-soft no-underline rounded-pill transition-all hover:text-text hover:bg-[rgba(255,255,255,0.07)]">
+                <a href={`#${l.toLowerCase().replace(/ /g,"-")}`}
+                  className="block px-3.5 py-[7px] text-[13px] text-[rgba(240,237,232,0.55)] no-underline rounded-full transition-all hover:text-[#f0ede8] hover:bg-[rgba(255,255,255,0.07)]">
                   {l}
                 </a>
               </li>
             ))}
           </ul>
+
           <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden md:block px-4 py-2 text-[13px] text-soft bg-transparent border border-edge-2 rounded-pill no-underline transition-all hover:text-text hover:border-[rgba(255,255,255,0.25)]">
-              Sign in
-            </Link>
-            <Link href="/signup" className="btn-primary text-[13px] py-2.5 px-5 max-md:text-xs max-md:py-2 max-md:px-4">
-              Get started free
-            </Link>
-            <button
-              className="flex md:hidden w-[34px] h-[34px] bg-[rgba(255,255,255,0.05)] border border-edge rounded-full cursor-pointer items-center justify-center flex-col gap-1"
-              onClick={() => setMenuOpen(v => !v)}
-            >
-              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all duration-[240ms] origin-center ${menuOpen ? "translate-y-[5px] rotate-45" : ""}`} />
-              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all duration-[240ms] ${menuOpen ? "opacity-0" : ""}`} />
-              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all duration-[240ms] origin-center ${menuOpen ? "-translate-y-[5px] -rotate-45" : ""}`} />
+            <Link href="/login" className="hidden md:block px-4 py-2 text-[13px] text-[rgba(240,237,232,0.55)] no-underline border border-[rgba(255,255,255,0.13)] rounded-full transition-all hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.25)]">Sign in</Link>
+            <Link href="/signup" className="inline-flex items-center bg-[#f0ede8] text-[#0c0c0e] rounded-full px-[18px] py-2 text-[13px] font-medium no-underline transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-[0_4px_22px_rgba(0,0,0,0.3)]">Get started</Link>
+            <button onClick={() => setMenuOpen(v => !v)} aria-label="Menu"
+              className="md:hidden w-[34px] h-[34px] bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.07)] rounded-full flex flex-col items-center justify-center gap-1 cursor-pointer">
+              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all origin-center ${menuOpen ? "translate-y-[5px] rotate-45" : ""}`}/>
+              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all ${menuOpen ? "opacity-0 scale-x-0" : ""}`}/>
+              <span className={`block w-[13px] h-px bg-[rgba(255,255,255,0.75)] rounded-sm transition-all origin-center ${menuOpen ? "-translate-y-[5px] -rotate-45" : ""}`}/>
             </button>
           </div>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <section className="min-h-svh flex flex-col items-center justify-center text-center px-6 pt-28 pb-16 relative overflow-hidden max-sm:px-5 max-sm:pt-28 max-sm:pb-14">
-        <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse,rgba(217,79,43,0.06)_0%,transparent_70%)] pointer-events-none" />
-        <div className="relative z-10 max-w-[760px] mx-auto animate-rise-in">
-          <p className="eyebrow justify-center mb-5">Built for how your brain actually works</p>
-          <h1 className="font-serif text-sh1 text-text font-medium mb-6 max-sm:text-[clamp(36px,10vw,56px)]">
-            Learning built for <em className="italic text-soft">your brain</em>
+      <section id="hero" className="min-h-svh flex flex-col items-center justify-center text-center px-6 pt-[120px] pb-20 relative overflow-hidden">
+        {/* Diagonal bars */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[12,28,50,68,84].map((left, i) => (
+            <div key={i} className="absolute w-[3px] h-[120%] top-[-10%]"
+              style={{ left: `${left}%`, background: "linear-gradient(to bottom,transparent,rgba(217,79,43,0.12),transparent)", transform: "rotate(-32deg)", animation: `barFloat ${14+i*2}s ${i*0.5}s ease-in-out infinite`, opacity: 0.5+i*0.1 }}/>
+          ))}
+        </div>
+        {/* Glow */}
+        <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none bg-[radial-gradient(ellipse,rgba(217,79,43,0.07)_0%,transparent_70%)]"/>
+
+        <div className="relative z-10 max-w-[820px]">
+          <div className="inline-flex items-center gap-2 bg-[rgba(217,79,43,0.08)] border border-[rgba(217,79,43,0.22)] rounded-full px-3.5 py-1.5 text-[11.5px] text-[#e8603c] tracking-[0.04em] mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#e8603c] animate-pulse"/>
+            AI-powered personalised learning
+          </div>
+          <h1 className="font-serif text-[clamp(42px,8vw,96px)] font-medium text-[#f0ede8] leading-[1.04] tracking-[-0.03em] mb-6">
+            Learning built<br/><em className="italic text-[rgba(240,237,232,0.55)]">for your brain.</em>
           </h1>
-          <p className="text-[clamp(15px,1.6vw,17.5px)] leading-[1.72] text-soft font-light max-w-[560px] mx-auto mb-10">
-            NeuroPath diagnoses how your brain retains information — through performance, not guesswork —
-            then turns every lecture into a personalised study system.
+          <p className="text-[clamp(15px,1.8vw,18px)] text-[rgba(240,237,232,0.55)] font-light leading-[1.7] max-w-[560px] mx-auto mb-9">
+            NeuroPath diagnoses how you actually retain information — through performance, not guesswork — then turns every lecture into a personalised study system.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/signup" className="btn-primary">
-              Get started free
-              <svg className="w-4 h-4 opacity-50 transition-all group-hover:opacity-100 group-hover:translate-x-[3px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+            <Link href="/signup" className="inline-flex items-center gap-2 bg-[#f0ede8] text-[#0c0c0e] rounded-full px-7 py-3.5 text-sm font-medium no-underline transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-[0_4px_22px_rgba(0,0,0,0.3)]">
+              Start for free
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
-            <a href="#how-it-works" className="btn-outline">
-              How it works
-            </a>
+            <a href="#how-it-works" className="inline-flex items-center gap-2 bg-transparent text-[rgba(240,237,232,0.55)] border border-[rgba(255,255,255,0.13)] rounded-full px-7 py-3.5 text-sm font-normal no-underline transition-all hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.26)] hover:-translate-y-0.5">See how it works</a>
           </div>
         </div>
       </section>
 
       {/* ── Marquee ── */}
-      <div className="border-y border-edge py-4 overflow-hidden">
-        <div className="flex animate-scroll-x w-max">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-            <span key={i} className="flex items-center gap-6 px-6 text-[12.5px] text-whisper tracking-[1.5px] uppercase whitespace-nowrap font-light">
-              {item}
-              <span className="w-1 h-1 rounded-full bg-[rgba(217,79,43,0.4)]" />
-            </span>
+      <div className="border-t border-b border-[rgba(255,255,255,0.07)] py-7 overflow-hidden">
+        <div className="flex w-max" style={{ animation: "scrollX 28s linear infinite" }}>
+          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((t, i) => (
+            <div key={i} className="flex items-center gap-4 px-8 text-[13px] text-[rgba(240,237,232,0.25)] tracking-[0.08em] uppercase whitespace-nowrap">
+              <div className="w-1 h-1 rounded-full bg-[#d94f2b] shrink-0"/>
+              {t}
+            </div>
           ))}
         </div>
       </div>
 
       {/* ── How it works ── */}
-      <section id="how-it-works" className="py-28 px-6">
+      <section id="how-it-works" className="px-6 py-[100px]">
         <div className="max-w-[1080px] mx-auto">
-          <div className="mb-12">
-            <p className="eyebrow">How it works</p>
-            <h2 className="font-serif text-sh2 text-text font-medium">Three steps to smarter studying</h2>
+          <div className="text-center mb-16">
+            <p className="flex items-center justify-center gap-2.5 text-[11px] font-medium text-[#d94f2b] tracking-[2.2px] uppercase mb-5 before:block before:w-[22px] before:h-px before:bg-[#d94f2b]">How it works</p>
+            <h2 className="font-serif text-[clamp(30px,3.8vw,48px)] font-medium text-[#f0ede8] tracking-[-0.025em] leading-[1.1]">Three steps to<br/>a smarter study system.</h2>
           </div>
-          <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {STEPS.map(s => (
-              <div key={s.n} className="card">
-                <div className="font-serif text-[48px] font-semibold text-[rgba(217,79,43,0.18)] leading-none mb-4 tracking-[-0.02em]">{s.n}</div>
-                <h3 className="font-serif text-[20px] font-medium text-text mb-2.5 tracking-[-0.01em]">{s.title}</h3>
-                <p className="text-sm text-soft leading-[1.7] font-light">{s.body}</p>
+              <div key={s.n} className="relative overflow-hidden bg-[#141418] border border-[rgba(255,255,255,0.07)] rounded-[20px] px-7 py-8 transition-all hover:border-[rgba(255,255,255,0.13)] hover:-translate-y-1">
+                <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.018)] to-transparent pointer-events-none rounded-[inherit]"/>
+                <div className="font-serif text-[48px] font-semibold text-[rgba(217,79,43,0.18)] leading-none tracking-[-0.02em] mb-4">{s.n}</div>
+                <p className="font-serif text-xl font-medium text-[#f0ede8] mb-2.5 tracking-[-0.01em]">{s.title}</p>
+                <p className="text-sm text-[rgba(240,237,232,0.55)] font-light leading-[1.7]">{s.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="h-px bg-edge max-w-[1120px] mx-auto" />
-
-      {/* ── Features bento ── */}
-      <section id="features" className="py-20 px-6">
+      {/* ── Features ── */}
+      <section id="features" className="px-6 py-20 pb-[100px]">
         <div className="max-w-[1080px] mx-auto">
           <div className="mb-12">
-            <p className="eyebrow">Features</p>
-            <h2 className="font-serif text-sh2 text-text font-medium">Everything you need, nothing you don&apos;t</h2>
+            <p className="flex items-center gap-2.5 text-[11px] font-medium text-[#d94f2b] tracking-[2.2px] uppercase mb-5 before:block before:w-[22px] before:h-px before:bg-[#d94f2b]">Features</p>
+            <h2 className="font-serif text-[clamp(30px,3.8vw,48px)] font-medium text-[#f0ede8] tracking-[-0.025em] leading-[1.1]">Everything you need<br/>to study smarter.</h2>
           </div>
-          <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {FEATURES.map(f => (
-              <div
-                key={f.title}
-                className={`
-                  bg-surface border border-edge rounded-lg p-7 relative overflow-hidden
-                  transition-all duration-300 hover:border-edge-2 hover:-translate-y-[3px]
-                  after:content-[''] after:absolute after:inset-0
-                  after:bg-gradient-to-br after:from-[rgba(255,255,255,0.018)] after:to-transparent
-                  after:pointer-events-none after:rounded-[inherit]
-                  ${f.wide ? "col-span-2 max-md:col-span-1" : ""}
-                `}
-              >
-                <span className="text-[28px] block mb-3.5">{f.icon}</span>
-                <h3 className="font-serif text-[18px] font-medium text-text mb-2 tracking-[-0.01em]">{f.title}</h3>
-                <p className="text-[13.5px] text-soft leading-[1.7] font-light">{f.body}</p>
+              <div key={f.title} className={`relative overflow-hidden bg-[#141418] border border-[rgba(255,255,255,0.07)] rounded-[20px] px-7 py-7 transition-all hover:border-[rgba(255,255,255,0.13)] hover:-translate-y-0.5 ${f.wide ? "md:col-span-2" : ""}`}>
+                <div className="absolute inset-0 bg-gradient-to-br from-[rgba(255,255,255,0.018)] to-transparent pointer-events-none rounded-[inherit]"/>
+                <span className="text-[28px] mb-3.5 block">{f.icon}</span>
+                <p className="font-serif text-[18px] font-medium text-[#f0ede8] mb-2 tracking-[-0.01em]">{f.title}</p>
+                <p className="text-[13.5px] text-[rgba(240,237,232,0.55)] font-light leading-[1.7]">{f.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <div className="h-px bg-edge max-w-[1120px] mx-auto" />
-
-      {/* ── CTA section ── */}
-      <section className="py-24 px-6 text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse,rgba(217,79,43,0.07)_0%,transparent_70%)] pointer-events-none" />
+      {/* ── CTA ── */}
+      <section id="diagnostics" className="px-6 py-[100px] text-center relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse,rgba(217,79,43,0.07)_0%,transparent_70%)] pointer-events-none"/>
         <div className="relative z-10 max-w-[600px] mx-auto">
-          <h2 className="font-serif text-[clamp(32px,5vw,56px)] font-medium text-text tracking-[-0.025em] leading-[1.1] mb-[18px]">
-            Ready to learn <em className="italic text-soft">smarter</em>?
+          <h2 className="font-serif text-[clamp(32px,5vw,56px)] font-medium text-[#f0ede8] tracking-[-0.025em] leading-[1.1] mb-4">
+            Ready to find out<br/><em className="italic text-[rgba(240,237,232,0.55)]">how you learn?</em>
           </h2>
-          <p className="text-base text-soft font-light leading-[1.7] mb-9">
-            Join students who are studying with a system built for their brain.
-            Free to start. No credit card needed.
-          </p>
+          <p className="text-base text-[rgba(240,237,232,0.55)] font-light leading-[1.7] mb-9">Take the 20-minute diagnostic and unlock a study system that actually fits your brain. Free to start.</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/signup" className="btn-primary">
-              Get started free
-              <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
+            <Link href="/signup" className="inline-flex items-center gap-2 bg-[#f0ede8] text-[#0c0c0e] rounded-full px-7 py-3.5 text-sm font-medium no-underline transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-[0_4px_22px_rgba(0,0,0,0.3)]">
+              Start the diagnostic
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
-            <Link href="/login" className="btn-outline">Sign in</Link>
+            <Link href="/login" className="inline-flex items-center gap-2 bg-transparent text-[rgba(240,237,232,0.55)] border border-[rgba(255,255,255,0.13)] rounded-full px-7 py-3.5 text-sm font-normal no-underline transition-all hover:text-[#f0ede8] hover:border-[rgba(255,255,255,0.26)] hover:-translate-y-0.5">Sign in</Link>
           </div>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-edge py-8 px-6 flex items-center justify-between flex-wrap gap-3 max-w-[1100px] mx-auto">
-        <a href="#" className="flex items-center gap-2 font-serif text-sm font-semibold text-text no-underline">
-          <div className="w-5 h-5 bg-gradient-to-br from-ember to-[#8c2410] rounded-full flex items-center justify-center">
-            <svg viewBox="0 0 20 20" fill="white" className="w-2.5 h-2.5">
-              <path d="M10 2.5c-1.2 0-2.3.4-3.1 1.1L4.5 5.7A4.5 4.5 0 0 0 3 9v2a4.5 4.5 0 0 0 1.5 3.3l2.4 2.1A4.5 4.5 0 0 0 10 17.5c1.2 0 2.3-.4 3.1-1.1l2.4-2.1A4.5 4.5 0 0 0 17 11V9a4.5 4.5 0 0 0-1.5-3.3L13.1 3.6A4.5 4.5 0 0 0 10 2.5z" opacity=".25" />
-              <path d="M7 7h2.5v6H7V7zm3.5 0H13l-1.5 3 1.5 3h-2.5V7z" />
+      <footer className="border-t border-[rgba(255,255,255,0.07)] px-6 py-7 max-w-[1100px] mx-auto flex items-center justify-between flex-wrap gap-3">
+        <Link href="/" className="flex items-center gap-2 no-underline text-[#f0ede8] font-serif text-sm font-semibold">
+          <div className="w-5 h-5 bg-gradient-to-br from-[#e8603c] to-[#8c2410] rounded-full flex items-center justify-center">
+            <svg viewBox="0 0 20 20" fill="white" className="w-[9px] h-[9px]">
+              <path d="M7 7h2.5v6H7V7zm3.5 0H13l-1.5 3 1.5 3h-2.5V7z"/>
             </svg>
           </div>
           NeuroPath
-        </a>
-        <p className="text-xs text-whisper">© {new Date().getFullYear()} NeuroPath. All rights reserved.</p>
+        </Link>
+        <p className="text-xs text-[rgba(240,237,232,0.25)]">
+          © {new Date().getFullYear()} NeuroPath. Built for students who want to understand how they learn.
+        </p>
       </footer>
     </div>
   );

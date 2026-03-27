@@ -10,11 +10,21 @@ const MOCK_USER: User = {
 
 export const userApi = {
   getProfile: (): Promise<User> =>
-    callOrMock(() => get<User>("/api/user/profile"), MOCK_USER, 400),
+    callOrMock(
+      async () => {
+        /* Backend returns { success, data: { user } } */
+        const data = await get<{ user: User }>("/api/user/profile");
+        return data.user;
+      },
+      MOCK_USER, 400
+    ),
 
   updateProfile: (payload: UpdateProfilePayload): Promise<User> =>
     callOrMock(
-      () => patch<User>("/api/user/profile", payload),
+      async () => {
+        const data = await patch<{ user: User }>("/api/user/profile", payload);
+        return data.user;
+      },
       { ...MOCK_USER, ...payload, updated_at: new Date().toISOString() },
       500
     ),

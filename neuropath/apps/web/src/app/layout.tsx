@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   authors: [{ name: "NeuroPath" }],
   creator: "NeuroPath",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001"
   ),
   openGraph: {
     type: "website",
@@ -36,7 +36,10 @@ export const metadata: Metadata = {
     description:
       "Discover how your brain actually learns. Personalized study packs from every lecture.",
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport: Viewport = {
@@ -53,8 +56,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="grain">
+      <body>
         {children}
+
+        {/* Global toast notifications */}
         <Toaster
           position="top-center"
           toastOptions={{
@@ -69,8 +74,18 @@ export default function RootLayout({
               fontWeight: "400",
               padding: "12px 18px",
             },
-            success: { iconTheme: { primary: "#d94f2b", secondary: "#f0ede8" } },
-            error:   { iconTheme: { primary: "#e8603c", secondary: "#f0ede8" } },
+            success: {
+              iconTheme: {
+                primary: "#d94f2b",
+                secondary: "#f0ede8",
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: "#e8603c",
+                secondary: "#f0ede8",
+              },
+            },
           }}
         />
       </body>

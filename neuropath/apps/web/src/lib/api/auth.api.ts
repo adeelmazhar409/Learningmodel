@@ -1,4 +1,5 @@
 import { callOrMock, post, del } from "./client";
+import { apiClient } from "./client";
 import type { SignupPayload, LoginPayload, AuthResponse } from "@neuropath/types";
 
 const MOCK_SESSION = {
@@ -7,37 +8,41 @@ const MOCK_SESSION = {
   expires_at:    Date.now() / 1000 + 3600,
   user_id:       "mock-user-001",
 };
-
 const MOCK_USER_BASE = {
-  id:               "mock-user-001",
-  email:            "student@school.edu",
-  grade_level:      null as null,
-  learning_profile: null as null,
-  created_at:       new Date().toISOString(),
-  updated_at:       new Date().toISOString(),
+  id: "mock-user-001", email: "student@school.edu",
+  grade_level: null as null, learning_profile: null as null,
+  created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
 };
 
 export const authApi = {
   signup: (payload: SignupPayload): Promise<AuthResponse> =>
     callOrMock(
-      () => post<AuthResponse>("/api/auth/signup", payload),
+      async () => {
+        const res = await apiClient.post<{ success: boolean; data: AuthResponse }>("/api/auth/signup", payload);
+        return res.data.data;
+      },
       { user: { ...MOCK_USER_BASE, name: payload.name, email: payload.email }, session: { ...MOCK_SESSION } },
       800
     ),
 
   login: (payload: LoginPayload): Promise<AuthResponse> =>
     callOrMock(
-      () => post<AuthResponse>("/api/auth/login", payload),
+      async () => {
+        const res = await apiClient.post<{ success: boolean; data: AuthResponse }>("/api/auth/login", payload);
+        return res.data.data;
+      },
       {
-        user: {
-          ...MOCK_USER_BASE, name: "Alex Johnson", email: payload.email, grade_level: 10,
-          learning_profile: { practice: 0.45, teach_back: 0.28, flashcards: 0.17, visual: 0.10 },
-        },
+        user: { ...MOCK_USER_BASE, name: "Alex Johnson", email: payload.email, grade_level: 10,
+          learning_profile: { practice: 0.45, teach_back: 0.28, flashcards: 0.17, visual: 0.10 } },
         session: { ...MOCK_SESSION },
       },
       700
     ),
 
   logout: (): Promise<void> =>
-    callOrMock(() => del<void>("/api/auth/logout"), undefined, 300),
+    callOrMock(
+      async () => { await apiClient.delete("/api/auth/logout"); },
+      undefined,
+      300
+    ),
 };
