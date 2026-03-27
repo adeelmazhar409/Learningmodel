@@ -1,80 +1,122 @@
-import { Router }               from "express";
-import { z }                    from "zod";
-import { diagnosticController } from "../controllers/diagnostic.controller";
-import { validate }             from "../middleware/validate.middleware";
-import { authMiddleware }       from "../middleware/auth.middleware";
+import { Router, Request, Response } from "express";
+import { z } from "zod";
+import { supabase } from "../config/supabase";
+import { authMiddleware } from "../middleware/auth.middleware";
+import { usersDb } from "../db/users.db";
 
 /*
-  What this file does:
-  --------------------
-  Defines the diagnostic endpoints that power the 20-minute
-  learning assessment.
+  Diagnostic routes — SIMPLE VERSION
+  ====================================
+  All questions live in the frontend (diagnostic.api.ts).
+  This server does ONE thing only: save the result when the test is done.
 
-  Routes defined here:
-  --------------------
-  POST /api/diagnostic/start
-    → Creates a new attempt, returns questions for all 4 rounds
-      and the 20 recall questions
-
-  POST /api/diagnostic/submit
-    → Receives all answers, runs the scoring algorithm,
-      saves the learning profile to the user record,
-      returns scores and the new profile
-
-  GET  /api/diagnostic/attempts/:id
-    → Returns a past attempt by ID (for reviewing results)
-
-  The answer schema:
-  ------------------
-  Each answer object must include:
-  - question_id (string)
-  - method      (which learning round the question came from)
-  - correct     (did the student get it right?)
-  - time_ms     (how long they took in milliseconds)
-  - user_answer (what they actually answered)
+  Routes:
+    POST /api/diagnostic/submit   — save scores + update user learning profile
+    GET  /api/diagnostic/latest   — return the user's most recent result (optional)
 */
 
-const startSchema = z.object({
-  subject:    z.string().min(1, "Subject is required"),
-  grade_band: z.enum(["5-6", "7-8", "9-10", "11-12"], {
-    errorMap: () => ({ message: "grade_band must be one of: 5-6, 7-8, 9-10, 11-12" }),
-  }),
-});
-
-const answerSchema = z.object({
-  question_id: z.string().min(1),
-  method:      z.enum(["flashcards", "practice", "visual", "teach_back"]),
-  correct:     z.boolean(),
-  time_ms:     z.number().int().min(0),
-  user_answer: z.string(),
+/* ── Validation ── */
+const methodScoreSchema = z.object({
+  accuracy: z.number().min(0).max(100),
+  speed: z.number().min(0).max(100),
+  retention: z.number().min(0).max(100),
+  final: z.number().min(0).max(100),
 });
 
 const submitSchema = z.object({
-  attempt_id: z.string().min(1, "attempt_id is required"),
-  answers:    z.array(answerSchema).min(1, "At least one answer is required"),
+  grade_band: z.enum(["5-6", "7-8", "9-10", "11-12"]),
+  scores: z.object({
+    flashcards: methodScoreSchema,
+    practice: methodScoreSchema,
+    visual: methodScoreSchema,
+    teach_back: methodScoreSchema,
+  }),
+  learning_profile: z.object({
+    flashcards: z.number().min(0).max(1),
+    practice: z.number().min(0).max(1),
+    visual: z.number().min(0).max(1),
+    teach_back: z.number().min(0).max(1),
+  }),
+  primary_method: z.enum(["flashcards", "practice", "visual", "teach_back"]),
+  secondary_method: z.enum(["flashcards", "practice", "visual", "teach_back"]),
 });
 
+/* ── Router ── */
 export const diagnosticRoutes = Router();
 
-/* All diagnostic routes require authentication */
 diagnosticRoutes.use(authMiddleware);
 
-/* POST /api/diagnostic/start */
-diagnosticRoutes.post(
-  "/start",
-  validate(startSchema),
-  diagnosticController.start,
-);
+/*
+  POST /api/diagnostic/submit
+  Body: { grade_band, scores, learning_profile, primary_method, secondary_method }
+  Response: { result_id, learning_profile }
+*/
+diagnosticRoutes.post("/submit", async (req: Request, res: Response) => {
+  const parsed = submitSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "Invalid payload" });
+    return;
+  }
 
-/* POST /api/diagnostic/submit */
-diagnosticRoutes.post(
-  "/submit",
-  validate(submitSchema),
-  diagnosticController.submit,
-);
+  const {
+    grade_band,
+    scores,
+    learning_profile,
+    primary_method,
+    secondary_method,
+  } = parsed.data;
+  const userId = req.userId;
 
-/* GET /api/diagnostic/attempts/:id */
-diagnosticRoutes.get(
-  "/attempts/:id",
-  diagnosticController.getAttempt,
-);
+  /* 1. Save the result row */
+  const { data: result, error } = await supabase
+    .from("diagnostic_results")
+    .insert({
+      user_id: userId,
+      grade_band,
+      scores,
+      learning_profile,
+      primary_method,
+      secondary_method,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    res.status(500).json({ success: false, message: "Could not save result" });
+    return;
+  }
+
+  /* 2. Update the user's learning profile so study packs use it */
+  await usersDb.update(userId, { learning_profile } as any);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      result_id: result.id,
+      learning_profile,
+      primary_method,
+      secondary_method,
+    },
+  });
+});
+
+/*
+  GET /api/diagnostic/latest
+  Returns the user's most recent diagnostic result (used by dashboard to show profile).
+*/
+diagnosticRoutes.get("/latest", async (req: Request, res: Response) => {
+  const { data, error } = await supabase
+    .from("diagnostic_results")
+    .select("*")
+    .eq("user_id", req.userId)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    res.status(200).json({ success: true, data: { result: null } });
+    return;
+  }
+
+  res.status(200).json({ success: true, data: { result: data } });
+});

@@ -1,23 +1,20 @@
-import { callOrMock, get, post } from "./client";
+import { callOrMock, post } from "./client";
 
 /* ─────────────────────────────────────────────────────────────────
    LOCAL TYPES
-   (mirrors @neuropath/types — defined here to avoid import issues)
 ───────────────────────────────────────────────────────────────── */
 type DiagnosticMethod = "flashcards" | "practice" | "visual" | "teach_back";
-type QuestionType = "mcq";
-type Difficulty = "easy" | "medium" | "hard";
 
 interface DiagnosticQuestion {
   id: string;
   method: DiagnosticMethod;
-  type: QuestionType;
-  difficulty: Difficulty;
+  type: "mcq";
+  difficulty: "easy" | "medium" | "hard";
   question: string;
   choices: string[];
   answer: string;
   explanation: string;
-  context?: string; // short passage shown before the question (used in visual round)
+  context?: string;
 }
 
 interface DiagnosticAnswer {
@@ -35,10 +32,6 @@ interface MethodScore {
   final: number;
 }
 
-interface StartDiagnosticPayload {
-  subject: string;
-  grade_band: string;
-}
 interface StartDiagnosticResponse {
   attempt_id: string;
   round_questions: DiagnosticQuestion[];
@@ -48,9 +41,13 @@ interface StartDiagnosticResponse {
 }
 
 interface SubmitDiagnosticPayload {
-  attempt_id: string;
-  answers: DiagnosticAnswer[];
+  grade_band: string;
+  scores: Record<DiagnosticMethod, MethodScore>;
+  learning_profile: Record<DiagnosticMethod, number>;
+  primary_method: DiagnosticMethod;
+  secondary_method: DiagnosticMethod;
 }
+
 interface SubmitDiagnosticResponse {
   scores: Record<DiagnosticMethod, MethodScore>;
   primary_method: DiagnosticMethod;
@@ -58,52 +55,19 @@ interface SubmitDiagnosticResponse {
   learning_profile: Record<DiagnosticMethod, number>;
 }
 
-interface DiagnosticAttempt {
-  id: string;
-  user_id: string;
-  subject: string;
-  grade_band: string;
-  started_at: string;
-  completed_at: string;
-  answers: DiagnosticAnswer[];
-  scores: Record<DiagnosticMethod, MethodScore>;
-  primary_method: DiagnosticMethod;
-  secondary_method: DiagnosticMethod;
-}
-
 /* ═══════════════════════════════════════════════════════════════
-   AGE-ADAPTED CONTENT LIBRARY
-   ─────────────────────────────────────────────────────────────
-   KEY DESIGN RULE (from your roadmap):
-   • Every topic must be COMPLETELY UNFAMILIAR to that age group.
-   • A Grade 5 student and a Grade 12 student must BOTH start
-     at zero — this tests HOW they learn, not WHAT they know.
-   • Same 4 methods (flashcards, practice, visual, teach_back)
-     teach IDENTICAL core facts. Only delivery format changes.
-   • 20 recall questions (5 per method) test retention after break.
-
-   TOPICS:
-   • Grade 5–6  → How Memory Works  (neuroscience, never taught)
-   • Grade 7–8  → How Sleep Repairs the Brain  (new for this age)
-   • Grade 9–10 → How Stress Affects Learning  (cognitive science)
-   • Grade 11–12 → Cognitive Biases  (psychology/decision-making)
+   QUESTION CONTENT — all local, never fetched from server
+   Same questions work for any age. Tests HOW you learn, not WHAT you know.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ─────────────────────────────────────────────────────────────────
    GRADE 5–6  |  Topic: How Memory Works
-   Core facts taught across all 4 methods:
-   1. Memory has 3 stages: encoding, storage, retrieval
-   2. Short-term memory holds ~7 items for ~20 seconds
-   3. Sleep helps move memories from short-term to long-term
-   4. Repetition strengthens memory (practice effect)
-   5. Emotion helps memory — you remember exciting things better
 ───────────────────────────────────────────────────────────────── */
 const GRADE_5_6_TOPIC = "How Memory Works";
 const GRADE_5_6_INTRO =
   "Your brain has a special system for remembering things. It works in 3 steps: first it records information (encoding), then it stores it, and later it brings it back (retrieval). Short-term memory can only hold about 7 things at once and lasts about 20 seconds. Sleep is when your brain moves important memories into long-term storage. Repeating something helps you remember it better. Emotions also help — exciting or scary events stick in your memory more easily.";
 
 const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
-  // Flashcard method — 6 simple Q&A style
   {
     id: "56_fc1",
     method: "flashcards",
@@ -180,8 +144,6 @@ const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Emotional events trigger chemicals that reinforce memory traces.",
   },
-
-  // Practice method — 6 application problems
   {
     id: "56_pr1",
     method: "practice",
@@ -209,8 +171,8 @@ const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
     choices: [
       "Moving facts to long-term memory",
       "Short-term memory capacity",
-      "Your ability to read",
-      "Your speed of encoding",
+      "Ability to read",
+      "Speed of encoding",
     ],
     answer: "Moving facts to long-term memory",
     explanation:
@@ -274,8 +236,6 @@ const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
     answer: "Bring stored information back into awareness",
     explanation: "Retrieval is the third stage — accessing what was stored.",
   },
-
-  // Visual method — 6 diagram/sequence reasoning questions (context provided in intro)
   {
     id: "56_vi1",
     method: "visual",
@@ -359,7 +319,7 @@ const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "Two students learn the same fact. Student A sleeps 8 hours; Student B sleeps 4 hours. Based on the diagram, whose long-term memory of the fact is stronger?",
+      "Two students learn the same fact. Student A sleeps 8 hours; Student B sleeps 4 hours. Whose long-term memory is stronger?",
     choices: ["Student A", "Student B", "Both equal", "Neither remembers"],
     answer: "Student A",
     explanation:
@@ -367,8 +327,6 @@ const GRADE_5_6_ROUND: DiagnosticQuestion[] = [
     context:
       "[Short-term] --Sleep--> [Long-term]. More sleep = stronger transfer.",
   },
-
-  // Teach-back method — 6 explanation prompts
   {
     id: "56_tb1",
     method: "teach_back",
@@ -748,12 +706,6 @@ const GRADE_5_6_RECALL: DiagnosticQuestion[] = [
 
 /* ─────────────────────────────────────────────────────────────────
    GRADE 7–8  |  Topic: How Sleep Repairs the Brain
-   Core facts:
-   1. During sleep the brain flushes out toxic waste (glymphatic system)
-   2. Deep sleep strengthens memory (consolidation)
-   3. REM sleep processes emotions and creativity
-   4. Teens need 8–10 hours; less causes poor concentration
-   5. Blue light from screens delays sleep by suppressing melatonin
 ───────────────────────────────────────────────────────────────── */
 const GRADE_7_8_TOPIC = "How Sleep Repairs the Brain";
 const GRADE_7_8_INTRO =
@@ -833,7 +785,6 @@ const GRADE_7_8_ROUND: DiagnosticQuestion[] = [
     explanation:
       "REM sleep is critical for emotional regulation and creative thinking.",
   },
-
   {
     id: "78_pr1",
     method: "practice",
@@ -927,7 +878,6 @@ const GRADE_7_8_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Poor sleep = uncleared waste + poor consolidation = impaired cognition.",
   },
-
   {
     id: "78_vi1",
     method: "visual",
@@ -952,7 +902,7 @@ const GRADE_7_8_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "easy",
     question:
-      "In the sleep stages diagram, REM sleep appears as [dreaming phase]. What else happens in REM?",
+      "In the sleep stages diagram, REM sleep appears as the dreaming phase. What else happens in REM?",
     choices: [
       "Emotions and creativity are processed",
       "Toxic waste is flushed",
@@ -1026,7 +976,7 @@ const GRADE_7_8_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "Two students' brain scans show Student A has clear, sharp activity; Student B has foggy, slow activity. Student B likely:",
+      "Two students' brain scans: Student A has clear, sharp activity; Student B has foggy, slow activity. Student B likely:",
     choices: [
       "Had insufficient sleep and brain waste was not cleared",
       "Read more books",
@@ -1038,7 +988,6 @@ const GRADE_7_8_ROUND: DiagnosticQuestion[] = [
     context:
       "Brain scan: [Student A: clear, sharp neural activity] vs [Student B: foggy, slow activity — excess waste present]",
   },
-
   {
     id: "78_tb1",
     method: "teach_back",
@@ -1438,12 +1387,6 @@ const GRADE_7_8_RECALL: DiagnosticQuestion[] = [
 
 /* ─────────────────────────────────────────────────────────────────
    GRADE 9–10  |  Topic: How Stress Affects Learning
-   Core facts:
-   1. Cortisol (stress hormone) is released by the adrenal glands
-   2. Short-term stress can sharpen focus (eustress)
-   3. Chronic stress shrinks the hippocampus (memory centre)
-   4. Cortisol blocks the prefrontal cortex (decision-making, focus)
-   5. Exercise reduces cortisol and improves learning
 ───────────────────────────────────────────────────────────────── */
 const GRADE_9_10_TOPIC = "How Stress Affects Learning";
 const GRADE_9_10_INTRO =
@@ -1520,7 +1463,6 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Cortisol impairs prefrontal function, reducing rational thinking.",
   },
-
   {
     id: "910_pr1",
     method: "practice",
@@ -1616,7 +1558,6 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Exercise lowers cortisol; sleep consolidates and repairs — both are needed.",
   },
-
   {
     id: "910_vi1",
     method: "visual",
@@ -1635,7 +1576,7 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "easy",
     question:
-      "In the diagram, short-term cortisol causes [focus up]; long-term cortisol causes [?].",
+      "In the diagram, short-term cortisol causes focus to rise; long-term cortisol causes [?].",
     choices: [
       "Hippocampus damage",
       "Better memory",
@@ -1653,7 +1594,7 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "medium",
     question:
-      "A graph shows cortisol spiking during a 30-minute stressor then dropping after exercise. What does the drop represent?",
+      "A graph shows cortisol spiking during a stressor then dropping after exercise. What does the drop represent?",
     choices: [
       "Exercise reducing cortisol to baseline",
       "Exercise producing more cortisol",
@@ -1688,7 +1629,7 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "Two brain MRI scans: Brain A has a larger hippocampus; Brain B has a smaller one. Brain B belongs to a student who has been chronically stressed for a year. Why is it smaller?",
+      "Two brain MRI scans: Brain A has a larger hippocampus; Brain B has a smaller one after one year of chronic stress. Why is it smaller?",
     choices: [
       "Chronic cortisol shrinks the hippocampus",
       "They did not exercise",
@@ -1707,7 +1648,7 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "The causal chain shows: chronic stress → cortisol elevated → hippocampus shrinks → [?] → academic decline. What fills the blank?",
+      "The causal chain: chronic stress → cortisol elevated → hippocampus shrinks → [?] → academic decline. What fills the blank?",
     choices: [
       "New memories cannot form properly",
       "Eustress takes over",
@@ -1720,7 +1661,6 @@ const GRADE_9_10_ROUND: DiagnosticQuestion[] = [
     context:
       "[Chronic stress] → [cortisol elevated] → [hippocampus shrinks] → [?] → [academic decline]",
   },
-
   {
     id: "910_tb1",
     method: "teach_back",
@@ -2108,16 +2048,10 @@ const GRADE_9_10_RECALL: DiagnosticQuestion[] = [
 
 /* ─────────────────────────────────────────────────────────────────
    GRADE 11–12  |  Topic: Cognitive Biases
-   Core facts:
-   1. Confirmation bias = seeking info that confirms existing beliefs
-   2. Dunning-Kruger effect = low competence → overconfidence
-   3. Anchoring bias = over-relying on first piece of information
-   4. Availability heuristic = judging probability by how easily examples come to mind
-   5. System 1 (fast, intuitive) vs System 2 (slow, analytical) thinking
 ───────────────────────────────────────────────────────────────── */
 const GRADE_11_12_TOPIC = "Cognitive Biases";
 const GRADE_11_12_INTRO =
-  "Cognitive biases are systematic errors in thinking that affect decisions. Confirmation bias makes people seek information that confirms what they already believe and ignore contradicting evidence. The Dunning-Kruger effect describes how people with low competence in a skill overestimate their ability — they don't know enough to know what they don't know. Anchoring bias occurs when people rely too heavily on the first piece of information they receive. The availability heuristic leads people to judge the probability of events by how easily examples come to mind — making vivid, memorable events seem more common than they are. Psychologist Daniel Kahneman describes two thinking systems: System 1 (fast, automatic, intuitive) and System 2 (slow, effortful, analytical). Most biases arise from over-relying on System 1.";
+  "Cognitive biases are systematic errors in thinking that affect decisions. Confirmation bias makes people seek information that confirms what they already believe and ignore contradicting evidence. The Dunning-Kruger effect describes how people with low competence in a skill overestimate their ability — they don't know enough to know what they don't know. Anchoring bias occurs when people rely too heavily on the first piece of information they receive. The availability heuristic leads people to judge the probability of events by how easily examples come to mind. Psychologist Daniel Kahneman describes two thinking systems: System 1 (fast, automatic, intuitive) and System 2 (slow, effortful, analytical). Most biases arise from over-relying on System 1.";
 
 const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
   {
@@ -2211,14 +2145,13 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     explanation:
       "System 2 requires deliberate attention and logical reasoning.",
   },
-
   {
     id: "1112_pr1",
     method: "practice",
     type: "mcq",
     difficulty: "easy",
     question:
-      "A student researches climate change and only reads articles that agree with their current view. This demonstrates:",
+      "A student only reads articles that agree with their current view on climate change. This demonstrates:",
     choices: [
       "Confirmation bias",
       "Dunning-Kruger effect",
@@ -2251,7 +2184,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "medium",
     question:
-      "A car salesperson shows you a $50,000 car first, then shows a $30,000 car that feels like a bargain. What bias explains this?",
+      "A car salesperson shows you a $50,000 car first, then a $30,000 car that feels like a bargain. What bias explains this?",
     choices: [
       "Anchoring bias",
       "Confirmation bias",
@@ -2311,14 +2244,13 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Low competence → overconfidence; then seeking only confirming information compounds the error.",
   },
-
   {
     id: "1112_vi1",
     method: "visual",
     type: "mcq",
     difficulty: "easy",
     question:
-      "In the bias map, confirmation bias is shown as a filter blocking [contradicting evidence]. What passes through?",
+      "In the bias map, confirmation bias is shown as a filter. What passes through?",
     choices: [
       "Only confirming evidence",
       "All evidence equally",
@@ -2346,7 +2278,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     ],
     answer: "Confidence dips before rising again",
     explanation:
-      "The Dunning-Kruger curve shows: low skill → peak confidence → skill develops → confidence dips → then rises to accurate level.",
+      "Low skill → peak confidence → skill develops → confidence dips → then rises to accurate level.",
     context:
       "Dunning-Kruger curve: [Low skill = high confidence (peak)] → [Growing skill = dropping confidence] → [Expert level = accurate, moderate confidence]",
   },
@@ -2356,7 +2288,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "medium",
     question:
-      "The anchoring diagram shows: anchor number $1000 → final estimate $850. Anchor $200 → final estimate $350. What does this show?",
+      "Anchor $1000 → estimate $850. Anchor $200 → estimate $350. What does this show?",
     choices: [
       "The anchor pulls estimates toward it",
       "Estimates are random",
@@ -2374,7 +2306,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "medium",
     question:
-      "The availability heuristic diagram shows sharks and cars. News coverage of shark attacks is high; actual attacks are rare. People rate shark danger as [?] relative to reality.",
+      "News coverage of shark attacks is high; actual attacks are rare. People rate shark danger as [?] relative to reality.",
     choices: [
       "Higher than reality",
       "Lower than reality",
@@ -2393,7 +2325,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "System 1 vs System 2 diagram: System 1 leads to [fast answer]. System 2 leads to [verified answer]. For complex decisions, which should you engage?",
+      "System 1 leads to a fast answer; System 2 leads to a verified answer. For complex decisions, which should you engage?",
     choices: [
       "System 2",
       "System 1",
@@ -2404,7 +2336,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     explanation:
       "Complex decisions require slow, analytical processing to avoid biased errors.",
     context:
-      "[Complex decision] → System 1: fast, intuitive answer (often biased) vs System 2: slow, analytical answer (more accurate). Arrow: use System 2 for important decisions.",
+      "[Complex decision] → System 1: fast, intuitive answer (often biased) vs System 2: slow, analytical answer (more accurate).",
   },
   {
     id: "1112_vi6",
@@ -2412,7 +2344,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "hard",
     question:
-      "The bias chain shows: novel information arrives → System 1 activates → anchoring bias occurs → estimate distorted → [?].",
+      "The bias chain: novel info → System 1 activates → anchoring bias → estimate distorted → [?].",
     choices: [
       "Poor decision made",
       "System 2 corrects it automatically",
@@ -2425,7 +2357,6 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     context:
       "[New info] → [System 1 fast response] → [Anchoring bias] → [Distorted estimate] → [?]",
   },
-
   {
     id: "1112_tb1",
     method: "teach_back",
@@ -2482,7 +2413,7 @@ const GRADE_11_12_ROUND: DiagnosticQuestion[] = [
     type: "mcq",
     difficulty: "medium",
     question:
-      "Describe a real-world situation where anchoring bias could cause someone to make a bad financial decision.",
+      "Describe a real-world situation where anchoring bias could cause a bad financial decision.",
     choices: [
       "A salesperson shows an expensive item first; the next cheaper item feels like a bargain even if still overpriced",
       "Someone confirms their existing view about prices",
@@ -2627,8 +2558,7 @@ const GRADE_11_12_RECALL: DiagnosticQuestion[] = [
     method: "visual",
     type: "mcq",
     difficulty: "medium",
-    question:
-      "Dunning-Kruger curve: low skill = high confidence. As skill grows, confidence:",
+    question: "Dunning-Kruger curve: as skill grows, confidence:",
     choices: [
       "Dips before rising again",
       "Keeps increasing",
@@ -2747,7 +2677,7 @@ const GRADE_11_12_RECALL: DiagnosticQuestion[] = [
     method: "visual",
     type: "mcq",
     difficulty: "hard",
-    question: "For complex decisions, System 1 vs System 2 diagram says use:",
+    question: "For complex decisions, System 1 vs System 2 — use:",
     choices: ["System 2", "System 1", "Either — same result", "Neither"],
     answer: "System 2",
     explanation: "",
@@ -2830,12 +2760,7 @@ const GRADE_11_12_RECALL: DiagnosticQuestion[] = [
 /* ═══════════════════════════════════════════════════════════════
    GRADE BAND SELECTOR
 ═══════════════════════════════════════════════════════════════ */
-function selectContent(gradeBand: string): {
-  topic: string;
-  intro: string;
-  round: DiagnosticQuestion[];
-  recall: DiagnosticQuestion[];
-} {
+function selectContent(gradeBand: string) {
   switch (gradeBand) {
     case "5-6":
       return {
@@ -2869,9 +2794,7 @@ function selectContent(gradeBand: string): {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   SCORING
-   Formula from your roadmap:
-   Final = (Accuracy × 0.60) + (Speed × 0.20) + (Retention × 0.20)
+   SCORING — runs entirely in the browser
 ═══════════════════════════════════════════════════════════════ */
 function calculateScores(
   answers: DiagnosticAnswer[],
@@ -2898,7 +2821,6 @@ function calculateScores(
         ? (recallA.filter((a) => a.correct).length / recallA.length) * 100
         : 0;
 
-    // Speed score: average time in ms; <5000ms = 100, >12000ms = 50
     const avgTime =
       roundA.length > 0
         ? roundA.reduce((s, a) => s + a.time_ms, 0) / roundA.length
@@ -2919,7 +2841,6 @@ function calculateScores(
       final: Math.round(final),
     };
   }
-
   return scores;
 }
 
@@ -2932,89 +2853,89 @@ function buildLearningProfile(
     "visual",
     "teach_back",
   ];
-  const totalFinal = methods.reduce((s, m) => s + scores[m].final, 0) || 1;
+  const total = methods.reduce((s, m) => s + scores[m].final, 0) || 1;
   const profile = {} as Record<DiagnosticMethod, number>;
   for (const m of methods) {
-    profile[m] = Math.round((scores[m].final / totalFinal) * 100) / 100;
+    profile[m] = Math.round((scores[m].final / total) * 100) / 100;
   }
   return profile;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   API
+   API — public surface used by the diagnostic page
+   
+   start()  → returns questions from local data, NO server call
+   submit() → scores locally, then saves result to server
 ═══════════════════════════════════════════════════════════════ */
 export const diagnosticApi = {
-  start: (
-    payload: StartDiagnosticPayload,
-  ): Promise<StartDiagnosticResponse> => {
+  /*
+    start() — no network call at all.
+    Picks questions based on grade band and returns them instantly.
+  */
+  start: (payload: {
+    subject: string;
+    grade_band: string;
+  }): Promise<StartDiagnosticResponse> => {
     const { topic, intro, round, recall } = selectContent(payload.grade_band);
-
-    const mockResponse: StartDiagnosticResponse = {
-      attempt_id: `attempt-${Date.now()}`,
+    return Promise.resolve({
+      attempt_id: `local-${Date.now()}`,
       round_questions: round,
       recall_questions: recall,
       topic,
       topic_intro: intro,
-    };
-
-    return callOrMock(
-      () => post<StartDiagnosticResponse>("/api/diagnostic/start", payload),
-      mockResponse,
-      800,
-    );
+    });
   },
 
-  submit: (
-    payload: SubmitDiagnosticPayload,
-  ): Promise<SubmitDiagnosticResponse> => {
-    // In mock mode, calculate real scores from the submitted answers
+  /*
+    submit() — scores everything in the browser, then sends
+    only the final numbers to the server to save.
+  */
+  submit: async (payload: {
+    attempt_id: string;
+    answers: DiagnosticAnswer[];
+    grade_band?: string;
+  }): Promise<SubmitDiagnosticResponse> => {
     const allAnswers = payload.answers;
     const roundAnswers = allAnswers.filter(
       (a) => !a.question_id.includes("rq"),
     );
-    const recallAns = allAnswers.filter((a) => a.question_id.includes("rq"));
+    const recallAnswers = allAnswers.filter((a) =>
+      a.question_id.includes("rq"),
+    );
 
-    const scores = calculateScores(roundAnswers, recallAns);
+    const scores = calculateScores(roundAnswers, recallAnswers);
     const profile = buildLearningProfile(scores);
 
-    const ranked = (
-      Object.entries(scores) as [DiagnosticMethod, MethodScore][]
-    ).sort(([, a], [, b]) => b.final - a.final);
+    const methods: DiagnosticMethod[] = [
+      "flashcards",
+      "practice",
+      "visual",
+      "teach_back",
+    ];
+    const ranked = methods.sort((a, b) => scores[b].final - scores[a].final);
 
-    const mockResponse: SubmitDiagnosticResponse = {
+    const result: SubmitDiagnosticResponse = {
       scores,
-      primary_method: ranked[0][0],
-      secondary_method: ranked[1][0],
+      primary_method: ranked[0],
+      secondary_method: ranked[1],
       learning_profile: profile,
     };
 
-    return callOrMock(
-      () => post<SubmitDiagnosticResponse>("/api/diagnostic/submit", payload),
-      mockResponse,
-      1200,
-    );
-  },
+    // Save to server if backend is configured — fire and forget, don't block the UI
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      const serverPayload: SubmitDiagnosticPayload = {
+        grade_band: payload.grade_band ?? "9-10",
+        scores,
+        learning_profile: profile,
+        primary_method: ranked[0],
+        secondary_method: ranked[1],
+      };
+      post<unknown>("/api/diagnostic/submit", serverPayload).catch(() => {
+        // Non-fatal — result is still shown to user even if save fails
+        console.warn("Could not save diagnostic result to server");
+      });
+    }
 
-  getAttempt: (attemptId: string): Promise<DiagnosticAttempt> =>
-    callOrMock(
-      () => get<DiagnosticAttempt>(`/api/diagnostic/attempts/${attemptId}`),
-      {
-        id: attemptId,
-        user_id: "mock-user-001",
-        subject: "How Memory Works",
-        grade_band: "9-10",
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        answers: [],
-        scores: {
-          flashcards: { accuracy: 60, speed: 75, retention: 55, final: 63 },
-          practice: { accuracy: 88, speed: 82, retention: 84, final: 86 },
-          visual: { accuracy: 52, speed: 68, retention: 48, final: 54 },
-          teach_back: { accuracy: 74, speed: 71, retention: 78, final: 74 },
-        },
-        primary_method: "practice",
-        secondary_method: "teach_back",
-      },
-      400,
-    ),
+    return result;
+  },
 };
