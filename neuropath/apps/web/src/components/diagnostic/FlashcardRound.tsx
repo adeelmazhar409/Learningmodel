@@ -46,40 +46,6 @@ function IcCheck({ s = 10 }: { s?: number }) {
     </svg>
   );
 }
-function IcClock({ s = 13 }: { s?: number }) {
-  return (
-    <svg
-      width={s}
-      height={s}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-function IcRotate({ s = 14 }: { s?: number }) {
-  return (
-    <svg
-      width={s}
-      height={s}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  );
-}
 
 /* ─────────────────────────────────────────
    Difficulty badge
@@ -117,7 +83,6 @@ function TimerRing({
 
   return (
     <svg width="52" height="52" viewBox="0 0 52 52">
-      {/* track */}
       <circle
         cx="26"
         cy="26"
@@ -126,7 +91,6 @@ function TimerRing({
         stroke="rgba(255,255,255,0.07)"
         strokeWidth="3"
       />
-      {/* progress */}
       <circle
         cx="26"
         cy="26"
@@ -140,7 +104,6 @@ function TimerRing({
         transform="rotate(-90 26 26)"
         style={{ transition: "stroke-dashoffset 1s linear, stroke 0.5s" }}
       />
-      {/* number */}
       <text
         x="26"
         y="30"
@@ -158,11 +121,15 @@ function TimerRing({
 
 /* ─────────────────────────────────────────
    Main component
+   FIX: starts directly in "cards" phase —
+   no redundant intro since the page-level
+   TopicIntroCard already introduces the topic.
 ───────────────────────────────────────── */
 export default function FlashcardRound({ questions, onComplete }: Props) {
   const { submitAnswer, startQuestion } = useDiagnosticStore();
 
-  const [phase, setPhase] = useState<"intro" | "cards" | "done">("intro");
+  // FIX: start in "cards" immediately, skip the intro screen
+  const [phase, setPhase] = useState<"cards" | "done">("cards");
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [marked, setMarked] = useState(false);
@@ -170,9 +137,8 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* start countdown when entering cards phase */
+  /* Start countdown immediately on mount */
   useEffect(() => {
-    if (phase !== "cards") return;
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -186,16 +152,15 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [phase]);
+  }, []);
 
-  /* start question timer when card changes */
+  /* Start question timer when card changes */
   useEffect(() => {
-    if (phase !== "cards") return;
     startQuestion();
     setFlipped(false);
     setMarked(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, phase]);
+  }, [index]);
 
   function handleMark(correct: boolean) {
     if (marked) return;
@@ -218,7 +183,7 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
   }
 
   function handleDone() {
-    // submit skipped cards as incorrect
+    // Submit skipped cards as incorrect
     for (let i = seenCount; i < questions.length; i++) {
       submitAnswer({
         question_id: questions[i].id,
@@ -228,59 +193,6 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
       });
     }
     onComplete();
-  }
-
-  /* ── INTRO ── */
-  if (phase === "intro") {
-    return (
-      <div className="flex flex-col items-center gap-6 max-w-[540px] mx-auto w-full py-4 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-[rgba(217,79,43,0.1)] border border-[rgba(217,79,43,0.2)] flex items-center justify-center">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-flame"
-          >
-            <rect x="2" y="5" width="20" height="14" rx="2" />
-            <line x1="2" y1="10" x2="22" y2="10" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-2">
-            Round 1 of 4
-          </p>
-          <h2 className="font-serif text-[22px] sm:text-[26px] font-medium text-text tracking-[-0.02em] mb-3">
-            Flashcard Round
-          </h2>
-          <p className="text-[13.5px] text-soft font-light leading-relaxed">
-            You&apos;ll see {questions.length} question-and-answer cards. Read
-            each question, then tap to reveal the answer. Mark whether you knew
-            it or not. You have{" "}
-            <strong className="text-text font-semibold">2 minutes</strong>.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap justify-center text-[12px] text-whisper">
-          <span className="flex items-center gap-1.5">
-            <IcClock /> 2 min limit
-          </span>
-          <span className="w-1 h-1 rounded-full bg-edge" />
-          <span>{questions.length} cards</span>
-          <span className="w-1 h-1 rounded-full bg-edge" />
-          <span>Tap card to flip</span>
-        </div>
-        <button
-          onClick={() => setPhase("cards")}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-br from-ember to-flame text-white rounded-full px-8 py-3.5 text-[14px] font-semibold cursor-pointer border-none transition-all hover:opacity-90 active:scale-95 shadow-[0_4px_20px_rgba(217,79,43,0.35)]"
-        >
-          Start round
-        </button>
-      </div>
-    );
   }
 
   /* ── DONE ── */
@@ -332,7 +244,7 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
         <TimerRing secondsLeft={timeLeft} total={ROUND_SECONDS} />
       </div>
 
-      {/* Difficulty */}
+      {/* Difficulty + hint */}
       <div className="flex items-center gap-2">
         <DiffBadge d={card.difficulty} />
         <span className="text-[11px] text-whisper">
@@ -445,7 +357,7 @@ export default function FlashcardRound({ questions, onComplete }: Props) {
           </span>
           <button
             onClick={() => {
-              // skip this card
+              // Skip this card
               submitAnswer({
                 question_id: card.id,
                 method: "flashcards",

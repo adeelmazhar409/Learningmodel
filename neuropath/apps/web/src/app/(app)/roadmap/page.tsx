@@ -11,7 +11,8 @@ import dayjs from "dayjs";
 ───────────────────────────────────────── */
 interface Task {
   id: string;
-  title: string;
+  title?: string; // may come as "title" from real API
+  description?: string; // may come as "description" from mock/older API
   subject?: string;
   method: string;
   day: string;
@@ -27,6 +28,14 @@ interface Roadmap {
   test_date: string;
   days_until_test: number;
   tasks: Task[];
+}
+
+/* ─────────────────────────────────────────
+   Helper: get displayable task label
+   Works whether the API returns "title" or "description"
+───────────────────────────────────────── */
+function taskLabel(task: Task): string {
+  return task.title || task.description || "Study task";
 }
 
 /* ─────────────────────────────────────────
@@ -202,14 +211,14 @@ function TaskRow({
         {task.completed ? <IcCheck /> : isBusy ? <IcLoader s={10} /> : null}
       </button>
 
-      {/* content */}
+      {/* content — FIX: use taskLabel() which falls back title → description → "Study task" */}
       <div className="flex-1 min-w-0">
         <p
           className={`text-[13px] sm:text-[13.5px] font-medium mb-1.5 ${
             task.completed ? "line-through text-whisper" : "text-text"
           }`}
         >
-          {task.title}
+          {taskLabel(task)}
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <span
@@ -221,6 +230,9 @@ function TaskRow({
             <IcClock />
             {task.duration_min} min
           </span>
+          {task.subject && (
+            <span className="text-[10.5px] text-whisper">{task.subject}</span>
+          )}
         </div>
       </div>
     </div>
