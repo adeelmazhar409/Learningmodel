@@ -1,48 +1,86 @@
-import { callOrMock, post, del } from "./client";
-import { apiClient } from "./client";
+import { supabase } from "./supabase";
 import type { SignupPayload, LoginPayload, AuthResponse } from "@neuropath/types";
-
-const MOCK_SESSION = {
-  access_token:  "mock-access-token",
-  refresh_token: "mock-refresh-token",
-  expires_at:    Date.now() / 1000 + 3600,
-  user_id:       "mock-user-001",
-};
-const MOCK_USER_BASE = {
-  id: "mock-user-001", email: "student@school.edu",
-  grade_level: null as null, learning_profile: null as null,
-  created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-};
+import { UnauthorizedError, ConflictError } from "../../utils/errors";
 
 export const authApi = {
-  signup: (payload: SignupPayload): Promise<AuthResponse> =>
-    callOrMock(
-      async () => {
-        const res = await apiClient.post<{ success: boolean; data: AuthResponse }>("/api/auth/signup", payload);
-        return res.data.data;
-      },
-      { user: { ...MOCK_USER_BASE, name: payload.name, email: payload.email }, session: { ...MOCK_SESSION } },
-      800
-    ),
 
-  login: (payload: LoginPayload): Promise<AuthResponse> =>
-    callOrMock(
-      async () => {
-        const res = await apiClient.post<{ success: boolean; data: AuthResponse }>("/api/auth/login", payload);
-        return res.data.data;
-      },
-      {
-        user: { ...MOCK_USER_BASE, name: "Alex Johnson", email: payload.email, grade_level: 10,
-          learning_profile: { practice: 0.45, teach_back: 0.28, flashcards: 0.17, visual: 0.10 } },
-        session: { ...MOCK_SESSION },
-      },
-      700
-    ),
+  /* Create a new account */
+  signup: async (payload: SignupPayload): Promise<AuthResponse> => {
+    const { name, email, password } = payload;
 
-  logout: (): Promise<void> =>
-    callOrMock(
-      async () => { await apiClient.delete("/api/auth/logout"); },
-      undefined,
-      300
-    ),
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) {
+      if (error.message.toLowerCase().includes("already registered")) {
+        throw new ConflictError("An account with this email already exists");
+      }
+      throw new Error(error.message);
+    }
+
+    if (!data.session || !data.user) {
+      throw new Error("Signup succeeded but no session returned");
+    }
+
+    /* Persist the extended profile (name, grade_level, etc.) */
+    const { error: profileError } = await supabase
+      .from("users")
+      .insert({ id: data.user.id, name, email });
+
+    if (profileError) throw new Error(profileError.message);
+
+    const { data: profile, error: fetchError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (fetchError || !profile) throw new Error("Could not load user profile");
+
+    return {
+      user: profile,
+      session: {
+        access_token:  data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at:    data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+        user_id:       data.user.id,
+      },
+    };
+  },
+
+  /* Log in with email and password */
+  login: async (payload: LoginPayload): Promise<AuthResponse> => {
+    const { email, password } = payload;
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error || !data.session || !data.user) {
+      throw new UnauthorizedError("Invalid email or password");
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new UnauthorizedError("Account not found");
+    }
+
+    return {
+      user: profile,
+      session: {
+        access_token:  data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at:    data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+        user_id:       data.user.id,
+      },
+    };
+  },
+
+  /* Invalidate the current session */
+  logout: async (): Promise<void> => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error(error.message);
+  },
 };
