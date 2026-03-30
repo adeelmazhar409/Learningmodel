@@ -140,7 +140,7 @@ export default function DiagnosticPage() {
   const {
     phase,
     profile,
-    answers,
+    roundAnswers,
     roundQuestions,
     recallQuestions,
     startDiagnostic,
@@ -181,10 +181,6 @@ export default function DiagnosticPage() {
     }
   }, [phase]);
 
-  /*
-    initDiagnostic — calls diagnosticApi.start() which is now SYNCHRONOUS
-    (returns a Promise.resolve, no network). Fast and instant.
-  */
   async function initDiagnostic() {
     const gradeNum = user?.grade_level ?? 10;
     const gradeBand =
@@ -196,7 +192,6 @@ export default function DiagnosticPage() {
             ? "9-10"
             : "11-12";
 
-    // This resolves instantly — no loading spinner needed
     const res = await diagnosticApi.start({
       subject: "Learning Science",
       grade_band: gradeBand,
@@ -240,7 +235,7 @@ export default function DiagnosticPage() {
     advancePhase();
   }
 
-  /* Score + save when recall is done */
+  /* Score + save when recall is done — pass round and recall separately */
   async function handleRecallComplete(recallAnswers: DiagAnswer[]) {
     if (!store.attemptId) return;
     setSubmitting(true);
@@ -255,30 +250,10 @@ export default function DiagnosticPage() {
               ? "9-10"
               : "11-12";
 
-      const res = await (
-        diagnosticApi as unknown as {
-          submit: (p: {
-            attempt_id: string;
-            answers: DiagAnswer[];
-            grade_band: string;
-          }) => Promise<{
-            scores: Record<
-              string,
-              {
-                accuracy: number;
-                speed: number;
-                retention: number;
-                final: number;
-              }
-            >;
-            primary_method: string;
-            secondary_method: string;
-            learning_profile: Record<string, number>;
-          }>;
-        }
-      ).submit({
+      const res = await diagnosticApi.submit({
         attempt_id: store.attemptId,
-        answers: [...answers, ...recallAnswers] as DiagAnswer[],
+        round_answers: roundAnswers as DiagAnswer[],
+        recall_answers: recallAnswers,
         grade_band: gradeBand,
       });
 

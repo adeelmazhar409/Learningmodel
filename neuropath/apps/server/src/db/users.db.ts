@@ -2,7 +2,6 @@ import { supabase } from "../config/supabase";
 import type { User } from "@neuropath/types";
 
 export const usersDb = {
-
   findById: async (id: string): Promise<User | null> => {
     const { data } = await supabase
       .from("users")
@@ -12,21 +11,43 @@ export const usersDb = {
     return data as User | null;
   },
 
-  create: async (payload: { id: string; name: string; email: string }): Promise<User> => {
+  create: async (payload: {
+    id: string;
+    name: string;
+    email: string;
+  }): Promise<User> => {
+    console.log("🔵 usersDb.create called with payload:", payload);
+    console.log(
+      "🔵 Payload.name type:",
+      typeof payload.name,
+      "Value:",
+      payload.name,
+    );
+    console.log("🔵 Payload.name is undefined?", payload.name === undefined);
+    console.log("🔵 Payload.name is null?", payload.name === null);
+
     const { data, error } = await supabase
       .from("users")
       .insert({
-        id:               payload.id,
-        name:             payload.name,
-        email:            payload.email,
-        grade_level:      null,
-        learning_profile: null,
-        created_at:       new Date().toISOString(),
-        updated_at:       new Date().toISOString(),
+        id: payload.id,
+        name: payload.name,
+        email: payload.email,
       })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+
+    console.log("🔵 Supabase insert response:", {
+      data,
+      error: error ? error.message : null,
+      errorDetails: error,
+    });
+
+    if (error) {
+      console.error("❌ Database insert error:", error);
+      throw new Error(error.message);
+    }
+
+    console.log("✅ User created in database:", data);
     return data as User;
   },
 

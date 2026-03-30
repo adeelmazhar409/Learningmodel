@@ -1,4 +1,4 @@
-import { callOrMock, post } from "./client";
+import { post } from "./client";
 
 /* ─────────────────────────────────────────────────────────────────
    LOCAL TYPES
@@ -57,7 +57,6 @@ interface SubmitDiagnosticResponse {
 
 /* ═══════════════════════════════════════════════════════════════
    QUESTION CONTENT — all local, never fetched from server
-   Same questions work for any age. Tests HOW you learn, not WHAT you know.
 ═══════════════════════════════════════════════════════════════ */
 
 /* ─────────────────────────────────────────────────────────────────
@@ -2794,10 +2793,26 @@ function selectContent(gradeBand: string) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   SHUFFLE — randomise choice order so correct answer is never
+   always option A. Components compare by string value not index,
+   so the answer field stays correct.
+═══════════════════════════════════════════════════════════════ */
+function shuffleChoices(questions: DiagnosticQuestion[]): DiagnosticQuestion[] {
+  return questions.map((q) => {
+    const choices = [...q.choices];
+    for (let i = choices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [choices[i], choices[j]] = [choices[j], choices[i]];
+    }
+    return { ...q, choices };
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SCORING — runs entirely in the browser
 ═══════════════════════════════════════════════════════════════ */
 function calculateScores(
-  answers: DiagnosticAnswer[],
+  roundAnswers: DiagnosticAnswer[],
   recallAnswers: DiagnosticAnswer[],
 ): Record<DiagnosticMethod, MethodScore> {
   const methods: DiagnosticMethod[] = [
@@ -2809,36 +2824,44 @@ function calculateScores(
   const scores = {} as Record<DiagnosticMethod, MethodScore>;
 
   for (const method of methods) {
-    const roundA = answers.filter((a) => a.method === method);
+    const roundA = roundAnswers.filter((a) => a.method === method);
     const recallA = recallAnswers.filter((a) => a.method === method);
 
+    // Accuracy: % correct in the learning rounds
     const accuracy =
       roundA.length > 0
         ? (roundA.filter((a) => a.correct).length / roundA.length) * 100
         : 0;
+
+    // Retention: % correct in the recall test (measures long-term transfer)
     const retention =
       recallA.length > 0
         ? (recallA.filter((a) => a.correct).length / recallA.length) * 100
         : 0;
 
+    // Speed: linear scale 100 (≤4 s) → 10 (≥20 s)
+    // Uses store-measured time_ms — 0 ms means timing failed, treat as average
+    const validTimes = roundA.filter((a) => a.time_ms > 0);
     const avgTime =
-      roundA.length > 0
-        ? roundA.reduce((s, a) => s + a.time_ms, 0) / roundA.length
-        : 8000;
-    const speed =
-      avgTime < 5000
-        ? 100
-        : avgTime > 12000
-          ? 50
-          : 100 - ((avgTime - 5000) / 7000) * 50;
+      validTimes.length > 0
+        ? validTimes.reduce((s, a) => s + a.time_ms, 0) / validTimes.length
+        : 10_000; // default to mid-range if no valid timings
 
-    const final = accuracy * 0.6 + speed * 0.2 + retention * 0.2;
+    const speed =
+      avgTime <= 4_000
+        ? 100
+        : avgTime >= 20_000
+          ? 10
+          : Math.round(100 - ((avgTime - 4_000) / 16_000) * 90);
+
+    // Final composite: accuracy 60%, speed 20%, retention 20%
+    const final = Math.round(accuracy * 0.6 + speed * 0.2 + retention * 0.2);
 
     scores[method] = {
       accuracy: Math.round(accuracy),
       speed: Math.round(speed),
       retention: Math.round(retention),
-      final: Math.round(final),
+      final,
     };
   }
   return scores;
@@ -2853,7 +2876,14 @@ function buildLearningProfile(
     "visual",
     "teach_back",
   ];
-  const total = methods.reduce((s, m) => s + scores[m].final, 0) || 1;
+
+  const total = methods.reduce((s, m) => s + scores[m].final, 0);
+
+  // If nobody answered anything, fall back to equal weights
+  if (total === 0) {
+    return { flashcards: 0.25, practice: 0.25, visual: 0.25, teach_back: 0.25 };
+  }
+
   const profile = {} as Record<DiagnosticMethod, number>;
   for (const m of methods) {
     profile[m] = Math.round((scores[m].final / total) * 100) / 100;
@@ -2863,14 +2893,15 @@ function buildLearningProfile(
 
 /* ═══════════════════════════════════════════════════════════════
    API — public surface used by the diagnostic page
-   
-   start()  → returns questions from local data, NO server call
-   submit() → scores locally, then saves result to server
+
+   start()  → returns shuffled questions from local data, no network
+   submit() → receives round + recall answers separately (no fragile
+              string-matching on IDs), scores locally, saves to server
 ═══════════════════════════════════════════════════════════════ */
 export const diagnosticApi = {
   /*
-    start() — no network call at all.
-    Picks questions based on grade band and returns them instantly.
+    start() — no network call.
+    Returns shuffled questions so the correct answer isn't always option A.
   */
   start: (payload: {
     subject: string;
@@ -2879,31 +2910,27 @@ export const diagnosticApi = {
     const { topic, intro, round, recall } = selectContent(payload.grade_band);
     return Promise.resolve({
       attempt_id: `local-${Date.now()}`,
-      round_questions: round,
-      recall_questions: recall,
+      round_questions: shuffleChoices(round),
+      recall_questions: shuffleChoices(recall),
       topic,
       topic_intro: intro,
     });
   },
 
   /*
-    submit() — scores everything in the browser, then sends
-    only the final numbers to the server to save.
+    submit() — accepts round and recall answers separately so scoring
+    never relies on question ID string patterns.
   */
   submit: async (payload: {
     attempt_id: string;
-    answers: DiagnosticAnswer[];
+    round_answers: DiagnosticAnswer[];
+    recall_answers: DiagnosticAnswer[];
     grade_band?: string;
   }): Promise<SubmitDiagnosticResponse> => {
-    const allAnswers = payload.answers;
-    const roundAnswers = allAnswers.filter(
-      (a) => !a.question_id.includes("rq"),
+    const scores = calculateScores(
+      payload.round_answers,
+      payload.recall_answers,
     );
-    const recallAnswers = allAnswers.filter((a) =>
-      a.question_id.includes("rq"),
-    );
-
-    const scores = calculateScores(roundAnswers, recallAnswers);
     const profile = buildLearningProfile(scores);
 
     const methods: DiagnosticMethod[] = [
@@ -2912,7 +2939,9 @@ export const diagnosticApi = {
       "visual",
       "teach_back",
     ];
-    const ranked = methods.sort((a, b) => scores[b].final - scores[a].final);
+    const ranked = [...methods].sort(
+      (a, b) => scores[b].final - scores[a].final,
+    );
 
     const result: SubmitDiagnosticResponse = {
       scores,
@@ -2921,7 +2950,7 @@ export const diagnosticApi = {
       learning_profile: profile,
     };
 
-    // Save to server if backend is configured — fire and forget, don't block the UI
+    // Fire-and-forget save to server if backend is configured
     if (process.env.NEXT_PUBLIC_API_URL) {
       const serverPayload: SubmitDiagnosticPayload = {
         grade_band: payload.grade_band ?? "9-10",
@@ -2931,7 +2960,6 @@ export const diagnosticApi = {
         secondary_method: ranked[1],
       };
       post<unknown>("/api/diagnostic/submit", serverPayload).catch(() => {
-        // Non-fatal — result is still shown to user even if save fails
         console.warn("Could not save diagnostic result to server");
       });
     }
