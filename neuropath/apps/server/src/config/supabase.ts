@@ -13,14 +13,19 @@ import { env } from "./env";
 
   NEVER expose the service role key to the frontend.
 */
+export const supabaseAuthClient = createClient(
+  env.SUPABASE_URL,
+  env.SUPABASE_ANON_KEY,
+);
+ 
 export const supabase = createClient(
   env.SUPABASE_URL,
   env.SUPABASE_SERVICE_ROLE_KEY,
   {
     auth: {
-      autoRefreshToken:  false,
-      persistSession:    false,
-      detectSessionInUrl:false,
+      autoRefreshToken:   false,
+      persistSession:     false,
+      detectSessionInUrl: false,
     },
   }
 );

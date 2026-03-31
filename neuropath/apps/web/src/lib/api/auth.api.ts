@@ -1,9 +1,12 @@
 import { supabase } from "./supabase";
-import type { SignupPayload, LoginPayload, AuthResponse } from "@neuropath/types";
+import type {
+  SignupPayload,
+  LoginPayload,
+  AuthResponse,
+} from "@neuropath/types";
 import { UnauthorizedError, ConflictError } from "../../utils/errors";
 
 export const authApi = {
-
   /* Create a new account */
   signup: async (payload: SignupPayload): Promise<AuthResponse> => {
     const { name, email, password } = payload;
@@ -17,8 +20,12 @@ export const authApi = {
       throw new Error(error.message);
     }
 
-    if (!data.session || !data.user) {
-      throw new Error("Signup succeeded but no session returned");
+    if (!data.user) throw new Error("Signup failed — no user returned");
+
+    // Email confirmation is ON — no session yet
+    // Tell the UI to show "check your email" screen
+    if (!data.session) {
+      throw new Error("CHECK_EMAIL"); // catch this in your UI and show confirmation message
     }
 
     /* Persist the extended profile (name, grade_level, etc.) */
@@ -39,10 +46,11 @@ export const authApi = {
     return {
       user: profile,
       session: {
-        access_token:  data.session.access_token,
+        access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
-        expires_at:    data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
-        user_id:       data.user.id,
+        expires_at:
+          data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+        user_id: data.user.id,
       },
     };
   },
@@ -51,7 +59,10 @@ export const authApi = {
   login: async (payload: LoginPayload): Promise<AuthResponse> => {
     const { email, password } = payload;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error || !data.session || !data.user) {
       throw new UnauthorizedError("Invalid email or password");
@@ -70,10 +81,11 @@ export const authApi = {
     return {
       user: profile,
       session: {
-        access_token:  data.session.access_token,
+        access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
-        expires_at:    data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
-        user_id:       data.user.id,
+        expires_at:
+          data.session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+        user_id: data.user.id,
       },
     };
   },

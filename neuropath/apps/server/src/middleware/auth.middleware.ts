@@ -1,30 +1,27 @@
 import { Request, Response, NextFunction } from "express";
-import { supabase } from "../config/supabase";
+import { supabaseAuthClient } from "../config/supabase"; // anon key — safe for JWT verification
 import { AppError } from "../utils/errors";
 import { logger }   from "../utils/logger";
 
 /*
   What this file does:
   --------------------
-  Every protected route (anything that needs a logged-in user) runs
-  this middleware FIRST before reaching the controller.
+  Every protected route runs this middleware FIRST before reaching
+  the controller. It reads the Authorization header, validates the
+  token with Supabase, and attaches the user's ID to the request.
 
-  It reads the Authorization header, validates the token with Supabase,
-  and attaches the user's ID to the request object.
+  Why supabaseAuthClient and not supabase (service role)?
+  -------------------------------------------------------
+  Calling getUser(token) on the service role client causes Supabase
+  to silently inject the user's JWT as the active session on that
+  shared client instance. Every subsequent DB/Storage call from that
+  client would then use the user JWT instead of the service role key,
+  causing RLS violations.
 
-  If the token is missing or invalid, it throws a 401 error immediately
-  and the controller never runs.
-
-  How tokens work:
-  ----------------
-  When a user logs in, Supabase gives them an access_token (a JWT string).
-  The frontend stores this and sends it with every request:
-    Authorization: Bearer eyJhbGci...
-
-  This middleware verifies that token is real and not expired.
+  supabaseAuthClient uses the anon key and is only ever used here —
+  it verifies the JWT without contaminating the service role client.
 */
 
-/* Extend Express's Request type to include our userId field */
 declare global {
   namespace Express {
     interface Request {
@@ -45,17 +42,17 @@ export async function authMiddleware(
       throw new AppError("Missing or invalid Authorization header", 401);
     }
 
-    const token = authHeader.slice(7); // Remove "Bearer " prefix
+    const token = authHeader.slice(7);
 
-    /* ── 2. Verify the token with Supabase ── */
-    const { data, error } = await supabase.auth.getUser(token);
+    /* ── 2. Verify JWT using the anon key client ONLY ── */
+    const { data, error } = await supabaseAuthClient.auth.getUser(token);
 
     if (error || !data.user) {
       logger.warn("Auth failed:", error?.message ?? "No user returned");
       throw new AppError("Invalid or expired token", 401);
     }
 
-    /* ── 3. Attach user ID to the request for controllers to use ── */
+    /* ── 3. Attach userId for controllers to use ── */
     req.userId = data.user.id;
 
     next();

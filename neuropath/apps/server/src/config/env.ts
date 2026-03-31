@@ -6,6 +6,7 @@ const envSchema = z.object({
   NODE_ENV:                 z.enum(["development", "production", "test"]).default("development"),
   SUPABASE_URL:             z.string().url("SUPABASE_URL must be a valid URL"),
   SUPABASE_SERVICE_ROLE_KEY:z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  SUPABASE_ANON_KEY:        z.string().min(1, "SUPABASE_ANON_KEY is required"),
   OPENAI_API_KEY:           z.string().min(1, "OPENAI_API_KEY is required"),
   REDIS_URL:                z.string().default("redis://localhost:6379"),
   JWT_SECRET:               z.string().min(32, "JWT_SECRET must be at least 32 characters"),

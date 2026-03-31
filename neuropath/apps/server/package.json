@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
-    "assemblyai":            "^4.7.0",
     "axios":                 "^1.7.9",
     "bullmq":                "^5.13.0",
     "cors":                  "^2.8.5",

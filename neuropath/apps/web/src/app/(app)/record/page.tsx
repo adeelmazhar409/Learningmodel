@@ -5,11 +5,16 @@ import AudioRecorder from "@/components/recording/AudioRecorder";
 import ProcessingStatus from "@/components/recording/ProcessingStatus";
 
 export default function RecordPage() {
-  const { phase, recordingId, reset } = useRecordingStore();
+  const { phase, recordingId, setRecordingId, setPhase, reset } = useRecordingStore();
   const [title,   setTitle]   = useState("");
   const [started, setStarted] = useState(false);
   const isProcessing = phase === "processing" || phase === "uploading";
   const isReady      = phase === "ready";
+
+  function handleUploaded(id: string) {
+    setRecordingId(id);
+    setPhase("processing");
+  }
 
   return (
     <div className="max-w-[680px] mx-auto px-6 py-12 pb-20">
@@ -48,7 +53,7 @@ export default function RecordPage() {
               <>
                 <p className="font-serif text-base font-medium text-[#f0ede8] mb-1.5 relative z-10">{title}</p>
                 <p className="text-[13px] text-[rgba(240,237,232,0.55)] font-light mb-7 relative z-10">Tap the button below to start. Speak clearly — the AI handles the rest.</p>
-                <AudioRecorder title={title} onUploaded={() => {}}/>
+                <AudioRecorder title={title} onUploaded={handleUploaded}/>
               </>
             ) : (
               <ProcessingStatus recordingId={recordingId ?? ""}/>
