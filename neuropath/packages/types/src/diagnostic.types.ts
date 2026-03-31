@@ -7,6 +7,8 @@ export type LearningMethod = "flashcards" | "practice" | "visual" | "teach_back"
 export type QuestionDifficulty = "easy" | "medium" | "hard";
 export type QuestionType = "mcq" | "short_answer" | "visual_label" | "teach_back";
 
+
+
 export interface DiagnosticQuestion {
   id:           string;
   method:       LearningMethod;

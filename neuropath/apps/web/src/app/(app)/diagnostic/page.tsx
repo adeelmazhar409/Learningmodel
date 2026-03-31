@@ -11,7 +11,9 @@ import TeachBackRound from "../../../components/diagnostic/TeachBackRound";
 import BreakScreen from "../../../components/diagnostic/BreakScreen";
 import RecallTest from "../../../components/diagnostic/RecallTest";
 import ProfileResult from "../../../components/diagnostic/ProfileResult";
+import { LearningProfile } from "@neuropath/types";
 import toast from "react-hot-toast";
+
 
 interface DiagAnswer {
   question_id: string;
@@ -20,6 +22,18 @@ interface DiagAnswer {
   time_ms: number;
   user_answer?: string;
 }
+
+export type DiagnosticResult = {
+  id: string;
+  scores: Record<
+    string,
+    { accuracy: number; speed: number; retention: number; final: number }
+  >;
+  learning_profile: Record<string, number>;
+  primary_method: string;
+  secondary_method: string;
+  completed_at: string;
+};
 
 /* ─────────────────────────────────────────
    Phase metadata
@@ -154,6 +168,10 @@ export default function DiagnosticPage() {
   const [submitting, setSubmitting] = useState(false);
   const [topic, setTopic] = useState("");
   const [topicIntro, setTopicIntro] = useState("");
+  const [checkingExisting, setCheckingExisting] = useState(true);
+  const [existingResult, setExistingResult] = useState<DiagnosticResult | null>(
+    null,
+  );
 
   // Group questions by method so each round gets its own slice
   const allRoundQRef = useRef<Record<string, unknown[]>>({});
@@ -162,8 +180,23 @@ export default function DiagnosticPage() {
 
   /* ── Init on mount ── */
   useEffect(() => {
-    if (phase !== "idle") return;
-    initDiagnostic();
+    async function checkExisting() {
+      try {
+        const { result } = await diagnosticApi.getLatest();
+        if (result) {
+          setExistingResult(result);
+          // Also hydrate the store so profile is set
+          setProfile(result.learning_profile as LearningProfile);
+        } else {
+          initDiagnostic();
+        }
+      } catch {
+        initDiagnostic(); // fallback: just start the test
+      } finally {
+        setCheckingExisting(false);
+      }
+    }
+    checkExisting();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -274,9 +307,54 @@ export default function DiagnosticPage() {
     phase !== "recall" && // ← add this line
     !!topicIntro;
   /* ── Render ── */
+
+  // Still checking Supabase
+  if (checkingExisting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-soft text-sm">Loading your profile…</p>
+      </div>
+    );
+  }
+
+  // Existing result found — show it directly
+  if (existingResult) {
+    return (
+      <div className="max-w-[700px] mx-auto px-5 py-14">
+        <div className="mb-8 text-center">
+          <p className="text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-2">
+            Your learning profile
+          </p>
+          <h1 className="font-serif text-[clamp(22px,5vw,36px)] font-medium text-text tracking-[-0.03em] leading-tight mb-2">
+            You've already completed the diagnostic.
+          </h1>
+          <p className="text-[13.5px] text-soft font-light">
+            Completed{" "}
+            {new Date(existingResult.completed_at).toLocaleDateString()}
+          </p>
+        </div>
+        <ProfileResult
+          profile={existingResult.learning_profile as any}
+          scores={existingResult.scores as any}
+        />
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => {
+              setExistingResult(null);
+              initDiagnostic();
+            }}
+            className="text-[12px] text-soft underline underline-offset-4 hover:text-text transition-colors"
+          >
+            Retake diagnostic
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-ink">
       {/* Ambient glow */}
+
       <div
         aria-hidden
         className="fixed top-0 left-1/2 -translate-x-1/2 w-[460px] h-[280px] pointer-events-none z-0"

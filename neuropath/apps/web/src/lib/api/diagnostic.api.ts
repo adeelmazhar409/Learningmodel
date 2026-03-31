@@ -1,5 +1,5 @@
-import { post } from "./client";
-
+import { post, get, IS_MOCK } from "./client";
+import { DiagnosticResult } from "@/app/(app)/diagnostic/page";
 /* ─────────────────────────────────────────────────────────────────
    LOCAL TYPES
 ───────────────────────────────────────────────────────────────── */
@@ -54,6 +54,8 @@ interface SubmitDiagnosticResponse {
   secondary_method: DiagnosticMethod;
   learning_profile: Record<DiagnosticMethod, number>;
 }
+
+
 
 /* ═══════════════════════════════════════════════════════════════
    QUESTION CONTENT — all local, never fetched from server
@@ -2903,6 +2905,8 @@ export const diagnosticApi = {
     start() — no network call.
     Returns shuffled questions so the correct answer isn't always option A.
   */
+  
+  
   start: (payload: {
     subject: string;
     grade_band: string;
@@ -2950,6 +2954,8 @@ export const diagnosticApi = {
       learning_profile: profile,
     };
 
+
+
     // Fire-and-forget save to server if backend is configured
     if (process.env.NEXT_PUBLIC_API_URL) {
       const serverPayload: SubmitDiagnosticPayload = {
@@ -2966,4 +2972,10 @@ export const diagnosticApi = {
 
     return result;
   },
+
+  getLatest: async (): Promise<{ result: DiagnosticResult | null }> => {
+      if (IS_MOCK) return { result: null };
+      const data = await get<{ result: DiagnosticResult | null }>("/api/diagnostic/latest");
+      return data;
+    },
 };

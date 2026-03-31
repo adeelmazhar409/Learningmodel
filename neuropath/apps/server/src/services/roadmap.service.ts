@@ -182,17 +182,17 @@ function buildTasks(
     const temps  = TEMPLATES[method];
     const temp   = temps[i % temps.length];
 
-    tasks.push({
-      roadmap_id:   roadmapId,
-      user_id:      userId,
-      day,
-      description:  temp.desc,
-      method,
-      duration_min: temp.dur,
-      completed:    false,
-      completed_at: null,
-      order:        i + 1,
-    } as any);
+   tasks.push({
+     roadmap_id: roadmapId,
+     user_id: userId,
+     day,
+     description: temp.desc,
+     method,
+     duration_min: temp.dur,
+     completed: false,
+     completed_at: null,
+     order: i + 1, // Supabase handles this fine via PostgREST
+   } as any);
   }
 
   return tasks;

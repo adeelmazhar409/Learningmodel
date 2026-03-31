@@ -31,19 +31,36 @@ export const roadmapApi = {
   generate: (payload: GenerateRoadmapPayload): Promise<Roadmap> =>
     callOrMock(
       async () => {
-        const data = await post<{ roadmap: Roadmap }>("/api/roadmap/generate", payload);
+        const data = await post<{ roadmap: Roadmap }>(
+          "/api/roadmap/generate",
+          payload,
+        );
         return data.roadmap;
       },
-      MOCK_ROADMAP, 900
+      MOCK_ROADMAP,
+      900,
     ),
 
-  get: (): Promise<Roadmap> =>
+  // In roadmap.api.ts
+  get: (): Promise<Roadmap | null> =>
     callOrMock(
       async () => {
-        const data = await get<{ roadmap: Roadmap }>("/api/roadmap");
-        return data.roadmap;
+        try {
+          const data = await get<{ roadmap: Roadmap }>("/api/roadmap");
+          return data.roadmap;
+        } catch (err: any) {
+          // 404 = no roadmap yet, that's fine
+          if (
+            err?.response?.status === 404 ||
+            err?.message?.includes("No roadmap")
+          ) {
+            return null;
+          }
+          throw err;
+        }
       },
-      MOCK_ROADMAP, 400
+      MOCK_ROADMAP,
+      400,
     ),
 
   getTodaysTasks: (): Promise<RoadmapTask[]> =>
@@ -52,23 +69,30 @@ export const roadmapApi = {
         const data = await get<TodaysTasksResponse>("/api/roadmap/today");
         return data.tasks;
       },
-      MOCK_TASKS.filter(t => t.day === dayjs().format("YYYY-MM-DD")),
-      350
+      MOCK_TASKS.filter((t) => t.day === dayjs().format("YYYY-MM-DD")),
+      350,
     ),
 
   completeTask: (taskId: string): Promise<CompleteTaskResponse> =>
     callOrMock(
       async () => {
-        const data = await post<CompleteTaskResponse>(`/api/roadmap/tasks/${taskId}/complete`);
+        const data = await post<CompleteTaskResponse>(
+          `/api/roadmap/tasks/${taskId}/complete`,
+        );
         return data;
       },
       (() => {
-        const task = MOCK_TASKS.find(t => t.id === taskId) ?? MOCK_TASKS[0];
+        const task = MOCK_TASKS.find((t) => t.id === taskId) ?? MOCK_TASKS[0];
         return {
-          task: { ...task, completed: true, completed_at: new Date().toISOString() },
-          coaching_message: COACHING[Math.floor(Math.random() * COACHING.length)],
+          task: {
+            ...task,
+            completed: true,
+            completed_at: new Date().toISOString(),
+          },
+          coaching_message:
+            COACHING[Math.floor(Math.random() * COACHING.length)],
         };
       })(),
-      500
+      500,
     ),
 };
