@@ -46,27 +46,6 @@ const PHASE_STEPS = [
 ] as const;
 
 /* ─────────────────────────────────────────
-   SVG Icons
-───────────────────────────────────────── */
-function IcRefresh({ s = 13 }: { s?: number }) {
-  return (
-    <svg
-      width={s}
-      height={s}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  );
-}
-
-/* ─────────────────────────────────────────
    Phase progress dots
 ───────────────────────────────────────── */
 function PhaseDots({ current }: { current: string }) {
@@ -102,7 +81,7 @@ function PhaseDots({ current }: { current: string }) {
 }
 
 /* ─────────────────────────────────────────
-   Topic intro card — collapsed by default
+   Topic intro card — hidden during recall
 ───────────────────────────────────────── */
 function TopicIntroCard({ topic, intro }: { topic: string; intro: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -132,6 +111,44 @@ function TopicIntroCard({ topic, intro }: { topic: string; intro: string }) {
 }
 
 /* ─────────────────────────────────────────
+   Already-completed banner
+───────────────────────────────────────── */
+function AlreadyCompletedBanner() {
+  return (
+    <div className="relative overflow-hidden bg-[rgba(217,79,43,0.06)] border border-[rgba(217,79,43,0.22)] rounded-2xl p-5 sm:p-6 mb-8">
+      <div className="absolute top-0 left-[20%] right-[20%] h-px bg-gradient-to-r from-transparent via-flame to-transparent" />
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-[rgba(217,79,43,0.12)] border border-[rgba(217,79,43,0.25)] flex items-center justify-center shrink-0 text-flame">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+        </div>
+        <div>
+          <p className="font-serif text-[17px] font-medium text-text mb-1 tracking-[-0.01em]">
+            Diagnostic already completed
+          </p>
+          <p className="text-[13px] text-soft font-light leading-relaxed">
+            You&apos;ve already taken the diagnostic. Your learning profile is
+            active and being used to personalise every study pack. The
+            diagnostic can only be taken once to ensure accuracy.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
    Main page
 ───────────────────────────────────────── */
 export default function DiagnosticPage() {
@@ -155,19 +172,55 @@ export default function DiagnosticPage() {
   const [topic, setTopic] = useState("");
   const [topicIntro, setTopicIntro] = useState("");
 
-  // Group questions by method so each round gets its own slice
-  const allRoundQRef = useRef<Record<string, unknown[]>>({});
+  /* Check if user already has a learning profile */
+  const hasCompletedDiagnostic = !!user?.learning_profile;
 
+  /* Saved profile scores — reconstruct from profile weights for display */
+  const savedProfile = user?.learning_profile as
+    | Record<string, number>
+    | undefined;
+
+  // Build placeholder scores from saved profile for display in ProfileResult
+  const savedScores = savedProfile
+    ? {
+        flashcards: {
+          accuracy: Math.round(savedProfile.flashcards * 100),
+          speed: 70,
+          retention: Math.round(savedProfile.flashcards * 100),
+          final: Math.round(savedProfile.flashcards * 100),
+        },
+        practice: {
+          accuracy: Math.round(savedProfile.practice * 100),
+          speed: 70,
+          retention: Math.round(savedProfile.practice * 100),
+          final: Math.round(savedProfile.practice * 100),
+        },
+        visual: {
+          accuracy: Math.round(savedProfile.visual * 100),
+          speed: 70,
+          retention: Math.round(savedProfile.visual * 100),
+          final: Math.round(savedProfile.visual * 100),
+        },
+        teach_back: {
+          accuracy: Math.round(savedProfile.teach_back * 100),
+          speed: 70,
+          retention: Math.round(savedProfile.teach_back * 100),
+          final: Math.round(savedProfile.teach_back * 100),
+        },
+      }
+    : null;
+
+  const allRoundQRef = useRef<Record<string, unknown[]>>({});
   const roundRef = useRef<HTMLDivElement>(null);
 
-  /* ── Init on mount ── */
+  /* Only init diagnostic if user hasn't completed it yet */
   useEffect(() => {
+    if (hasCompletedDiagnostic) return;
     if (phase !== "idle") return;
     initDiagnostic();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── Scroll to round content when phase changes ── */
   useEffect(() => {
     if (phase !== "idle" && phase !== "complete" && roundRef.current) {
       setTimeout(
@@ -200,7 +253,6 @@ export default function DiagnosticPage() {
     setTopic(res.topic ?? "");
     setTopicIntro(res.topic_intro ?? "");
 
-    // Group round questions by method
     const byMethod: Record<string, unknown[]> = {};
     for (const q of res.round_questions as Array<{ method: string }>) {
       if (!byMethod[q.method]) byMethod[q.method] = [];
@@ -217,7 +269,6 @@ export default function DiagnosticPage() {
     );
   }
 
-  /* Advance to next round, loading that round's questions */
   function handleRoundComplete() {
     const nextMethodMap: Record<string, string> = {
       round_flashcards: "practice",
@@ -235,7 +286,6 @@ export default function DiagnosticPage() {
     advancePhase();
   }
 
-  /* Score + save when recall is done — pass round and recall separately */
   async function handleRecallComplete(recallAnswers: DiagAnswer[]) {
     if (!store.attemptId) return;
     setSubmitting(true);
@@ -267,16 +317,58 @@ export default function DiagnosticPage() {
   }
 
   const stepIdx = PHASE_STEPS.indexOf(phase as (typeof PHASE_STEPS)[number]);
+
+  /* Hide topic intro during recall — no hints during memory test */
   const showTopicIntro =
     phase !== "idle" &&
     phase !== "complete" &&
     phase !== "break" &&
+    phase !== "recall" &&
     !!topicIntro;
 
-  /* ── Render ── */
+  /* ── If already completed, show their saved result ── */
+  if (hasCompletedDiagnostic && phase === "idle") {
+    return (
+      <div className="min-h-screen bg-ink">
+        <div
+          aria-hidden
+          className="fixed top-0 left-1/2 -translate-x-1/2 w-[460px] h-[280px] pointer-events-none z-0"
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-[rgba(217,79,43,0.07)] to-transparent blur-3xl" />
+        </div>
+
+        <div className="relative z-10 max-w-[820px] mx-auto px-4 sm:px-6 pt-6 pb-28">
+          <div className="mb-7">
+            <p className="flex items-center gap-2 text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-4">
+              <span className="w-4 h-px bg-flame" />
+              Diagnostic
+            </p>
+            <h1 className="font-serif text-[clamp(20px,4.5vw,32px)] font-medium text-text tracking-[-0.03em] leading-tight mb-1">
+              Your Learning Profile
+            </h1>
+            <p className="text-[13.5px] text-soft font-light">
+              Based on your completed diagnostic.
+            </p>
+          </div>
+
+          <AlreadyCompletedBanner />
+
+          {savedProfile && savedScores && (
+            <ProfileResult
+              profile={
+                savedProfile as Parameters<typeof ProfileResult>[0]["profile"]
+              }
+              scores={savedScores}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Normal diagnostic flow ── */
   return (
     <div className="min-h-screen bg-ink">
-      {/* Ambient glow */}
       <div
         aria-hidden
         className="fixed top-0 left-1/2 -translate-x-1/2 w-[460px] h-[280px] pointer-events-none z-0"
@@ -285,7 +377,7 @@ export default function DiagnosticPage() {
       </div>
 
       <div className="relative z-10 max-w-[820px] mx-auto px-4 sm:px-6 pt-6 pb-28">
-        {/* ── Phase header ── */}
+        {/* Phase header */}
         {phase !== "idle" && phase !== "complete" && (
           <div className="mb-7">
             <p className="flex items-center gap-2 text-[10px] font-semibold text-flame tracking-[2.5px] uppercase mb-4">
@@ -317,10 +409,10 @@ export default function DiagnosticPage() {
           </div>
         )}
 
-        {/* ── Topic intro card ── */}
+        {/* Topic intro — hidden during recall */}
         {showTopicIntro && <TopicIntroCard topic={topic} intro={topicIntro} />}
 
-        {/* ── Calculating overlay ── */}
+        {/* Calculating overlay */}
         {submitting && (
           <div className="flex flex-col items-center justify-center py-20 gap-5 text-center">
             <div className="w-7 h-7 border-2 border-edge border-t-ember rounded-full animate-spin" />
@@ -335,7 +427,7 @@ export default function DiagnosticPage() {
           </div>
         )}
 
-        {/* ── Round content ── */}
+        {/* Round content */}
         {!submitting && (
           <div ref={roundRef}>
             {phase === "round_flashcards" && roundQuestions.length > 0 && (
@@ -440,20 +532,7 @@ export default function DiagnosticPage() {
           </div>
         )}
 
-        {/* ── Restart button ── */}
-        {phase !== "idle" && phase !== "complete" && !submitting && (
-          <div className="mt-10 flex justify-center">
-            <button
-              onClick={() => {
-                reset();
-                setTimeout(initDiagnostic, 100);
-              }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge bg-transparent text-[12px] text-whisper font-semibold cursor-pointer hover:text-soft hover:border-edge-2 transition-all font-sans"
-            >
-              <IcRefresh /> Restart diagnostic
-            </button>
-          </div>
-        )}
+        {/* Restart button — removed entirely. No retakes allowed. */}
       </div>
     </div>
   );

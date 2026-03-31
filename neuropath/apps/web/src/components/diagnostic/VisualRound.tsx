@@ -146,14 +146,16 @@ function DiffBadge({ d }: { d: "easy" | "medium" | "hard" }) {
    Context panel (renders diagram text)
 ───────────────────────────────────────── */
 function ContextPanel({ text }: { text: string }) {
-  /* Parse the context string — segments split by → or |
-     e.g. "[Step A] → [Step B] → [Step C]"
-     We render it as a horizontal flow diagram using boxes + arrows */
   const segments = text
     .split(/\s*[→|]\s*/)
     .map((s) => s.trim())
     .filter(Boolean);
   const isSingleBlock = segments.length <= 1;
+
+  // Strip ALL square and round brackets anywhere in the string
+  function stripBrackets(s: string) {
+    return s.replace(/[\[\]()]/g, "").trim();
+  }
 
   return (
     <div className="relative overflow-hidden bg-[rgba(217,79,43,0.04)] border border-[rgba(217,79,43,0.18)] rounded-2xl p-4 sm:p-5">
@@ -163,18 +165,16 @@ function ContextPanel({ text }: { text: string }) {
       </p>
 
       {isSingleBlock ? (
-        /* Single block — just render as formatted text */
         <p className="text-[13px] sm:text-[13.5px] text-soft font-light leading-relaxed font-mono">
-          {text}
+          {stripBrackets(text)}
         </p>
       ) : (
-        /* Multi-segment — render as flow diagram */
         <div className="flex flex-wrap items-center gap-1.5">
           {segments.map((seg, i) => {
-            /* Detect if this segment is a label (in square brackets) or a connector */
+            const clean = stripBrackets(seg);
             const isBox = seg.startsWith("[") || seg.startsWith("(");
             const isNote =
-              !isBox && !seg.includes("[") && i > 0 && i < segments.length - 1;
+              !isBox && seg.includes(":") && i > 0 && i < segments.length - 1;
 
             return (
               <div key={i} className="flex items-center gap-1.5">
@@ -205,7 +205,7 @@ function ContextPanel({ text }: { text: string }) {
                         : "text-soft text-[11px]",
                   ].join(" ")}
                 >
-                  {seg.replace(/^\[|\]$/g, "").replace(/^\(|\)$/g, "")}
+                  {clean}
                 </span>
               </div>
             );
